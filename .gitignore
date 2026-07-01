@@ -1,0 +1,20 @@
+# --- Secrets / config (contains live DB credentials) ---
+config.php
+
+# --- Server / runtime logs ---
+error_log
+*.log
+
+# --- Mutable runtime state ---
+ticket_counter.txt
+
+# --- Composer dependencies (restore with: composer install) ---
+vendor/
+
+# --- OS / editor cruft ---
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
