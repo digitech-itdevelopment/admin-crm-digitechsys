@@ -11,6 +11,9 @@ ticket_counter.txt
 # --- Composer dependencies (restore with: composer install) ---
 vendor/
 
+# --- Tooling artifacts ---
+.playwright-mcp/
+
 # --- OS / editor cruft ---
 .DS_Store
 Thumbs.db
