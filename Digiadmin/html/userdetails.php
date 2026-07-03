@@ -5,8 +5,13 @@ $conn = getDbConnection();
 
 
 
-// Code to insert multiple options values as an array in database 
-
+// Build the comma-separated list of requested stationary items.
+// NOTE: This block previously ran a preliminary INSERT that supplied only
+// the `stationaryreq` column. Because `tiknumber` (and other columns) are
+// NOT NULL with no default and MariaDB runs in strict mode, that insert
+// threw an uncaught mysqli exception -> HTTP 500, aborting the request
+// before the real record below could ever be saved. The insert is removed;
+// only the value we still need ($stationaryreq_str) is kept.
 if (isset($_POST['stationaryreq']) && is_array($_POST['stationaryreq'])) {
     $stationaryreq = $_POST['stationaryreq'];
 } else {
@@ -15,19 +20,6 @@ if (isset($_POST['stationaryreq']) && is_array($_POST['stationaryreq'])) {
 
 // Convert the array to a comma-separated string
 $stationaryreq_str = implode(', ', $stationaryreq);
-
-
-// Prepare an SQL statement to insert the data
-$sql = "INSERT INTO digitechcrm (stationaryreq) VALUES (?)";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("s", $stationaryreq_str);
-
-// Execute the statement
-if ($stmt->execute()) {
-    echo "options values inserted successfully";
-} else {
-    echo "Error: " . $stmt->error;
-}
 
 // Collect POST data
 $prevmaintain = isset($_POST['prevmaintain']) ? 'Yes' : 'No';
@@ -211,13 +203,15 @@ else {
 
 $mail->Body .= '</table></body></html>';
 
-// Attempt to send the email
-if ($mail->send()) {
-    // Email sent successfully
+// Attempt to send the email. PHPMailer is constructed with exceptions
+// enabled (new PHPMailer(TRUE)), so an unreachable/misconfigured SMTP host
+// throws — which would (previously) abort the request before the record was
+// saved. Catch it so notification problems never block saving the call.
+try {
+    $mail->send();
     $_SESSION['success_message'] = "Form submitted successfully!";
-} else {
-    // Email sending failed
-    echo "Mailer Error: " . $mail->ErrorInfo;
+} catch (\Throwable $mailError) {
+    error_log("Digitech CRM: email notification failed: " . $mailError->getMessage());
 }
 
 
@@ -242,19 +236,24 @@ $stmt->bind_param("ssssssssssssssssssssssssssssssssss",
     $downntym, $file_paths_str);
 
 if ($stmt->execute()) {
-    echo "New record created successfully";
 
-    // Update the stock in stocklist table
-    $columnToUpdate = $conn->real_escape_string($partnm);
-    $updateStockSql = "UPDATE stocklist SET $columnToUpdate = $columnToUpdate - 1 WHERE $columnToUpdate IS NOT NULL";
-
-    if ($conn->query($updateStockSql) === TRUE) {
-        echo "Records inserted and stock updated successfully.";
-    } else {
-        echo "Error updating stock: " . $conn->error;
+    // Decrement stock for the selected part, if any. Best-effort only:
+    // an empty part name (e.g. on the call-registration form) would otherwise
+    // build invalid SQL and throw AFTER the record was already saved. Guard
+    // on a non-empty name and never let a stock error crash the request.
+    if ($partnm !== '') {
+        try {
+            $columnToUpdate = $conn->real_escape_string($partnm);
+            $updateStockSql = "UPDATE stocklist SET `$columnToUpdate` = `$columnToUpdate` - 1 WHERE `$columnToUpdate` IS NOT NULL";
+            $conn->query($updateStockSql);
+        } catch (\Throwable $stockError) {
+            error_log("Digitech CRM: stock update skipped/failed: " . $stockError->getMessage());
+        }
     }
 
-    // Set success message and redirect
+    // Set success message and redirect. No output is echoed before this point,
+    // so the header() redirect works (previously the debug echoes above caused
+    // "headers already sent" and the redirect silently failed).
     $_SESSION['success_message'] = "Form submitted successfully!";
     $form_type = isset($_POST['form_type']) ? $_POST['form_type'] : '';
     if ($form_type == 'callregistered') {
@@ -263,7 +262,8 @@ if ($stmt->execute()) {
         header("Location: callclosed.php");
     }
 } else {
-    echo "Error: " . $stmt->error;
+    error_log("Digitech CRM: record insert failed: " . $stmt->error);
+    echo "Error saving the record. Please contact support.";
 }
 
 $stmt->close();
