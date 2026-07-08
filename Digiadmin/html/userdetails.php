@@ -54,6 +54,9 @@ $email = isset($_POST['emailinfo']) ? 'Yes' : 'No';
 $warrantydatetym = isset($_POST['txtDateTime5']) ? $_POST['txtDateTime5'] : '';
 $remarksifany = isset($_POST['txtremarks']) ? $_POST['txtremarks'] : '';
 $error = isset($_POST['errorcode']) ? $_POST['errorcode'] : '';
+$approvalpending = isset($_POST['approvalpending']) ? 'Yes' : 'No';
+$bankend = isset($_POST['bankend']) ? 'Yes' : 'No';
+$bankendtext = isset($_POST['bankendtext']) ? $_POST['bankendtext'] : '';
 
 
 
@@ -102,11 +105,7 @@ if (($ticketstat == "Pending" || $ticketstat == "Closed") &&
     $mail->addAddress("info@digitechsys.net");
 }
 
-else if ($calltype == "AMC"  && ($warrantystatus == "AGS")) {
-  $mail->addAddress("chaba.raman@agsindia.com");
-     $mail->addAddress("helpdesk_support@agsindia.com");
-    $mail->addAddress("dharminder.kumar@agsindia.com");
-}
+// AGS branch removed (AGS no longer a warranty option)
 
 
   else  if ($calltype == "AMC"  && ($warrantystatus == "Dibold")) {
@@ -128,9 +127,8 @@ else if ($calltype == "AMC"  && ($warrantystatus == "AGS")) {
 
 
 else if ($warrantystatus == "Under-Warranty") {
-    $mail->addAddress("helpdesk_support@agsindia.com");
-    $mail->addAddress("dharminder.kumar@agsindia.com");
-    $mail->addAddress("chaba.raman@agsindia.com");
+    $mail->addAddress("suhas@digitechsys.net");
+    $mail->addAddress("jyotin@digitechsys.net");
 } 
 
 
@@ -223,17 +221,17 @@ $sql = "INSERT INTO digitechcrm (
     tiknumber, error, issues, stationaryreq, atmworking, callregtimings, tickview, tktstatusdetails, branchname, 
     bnkname, atmid, custnumber, calltype, warrantystatus, prevmaintain, stationarydelvrd, complainno, callregthr, 
     calltimings, callregoememail, callregdsi, datetimee, resolby, demandoem, partnm, oemeng, digieng, timeofclos, 
-    calllogtym, email, remarksifany, warrantydatetym, downntym, svr) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    calllogtym, email, remarksifany, warrantydatetym, downntym, svr, approvalpending, bankend, bankendtext) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("ssssssssssssssssssssssssssssssssss",
+$stmt->bind_param("sssssssssssssssssssssssssssssssssssss",
 
     $ticketnumberr, $error, $issues, $stationaryreq_str, $atmworking, $callregtime, $ticketview, $ticketstat, $bname,
     $banknamee, $atmidd, $custnumber, $calltype, $warrantystatus, $prevmaintain, $stationarydelvrd,
     $complainnumber, $callregthr, $calltimings, $callregoememail, $callregdsi, $datetimee,
     $resolby, $demandoem, $partnm, $oemeng, $digieng, $timeofclos, $calllogtym, $email, $remarksifany, $warrantydatetym, 
-    $downntym, $file_paths_str);
+    $downntym, $file_paths_str, $approvalpending, $bankend, $bankendtext);
 
 if ($stmt->execute()) {
 

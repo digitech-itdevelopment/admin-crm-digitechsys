@@ -34,9 +34,12 @@ $selectedBank = isset($_POST['bank']) ? $_POST['bank'] : '';
 // SQL query to select data from database based on selected bank
 $sql = "SELECT tiknumber, error, issues, stationaryreq, atmworking, callregtimings, tktstatusdetails, tickview, branchname, bnkname, atmid, custnumber, calltype, warrantystatus,
         prevmaintain, stationarydelvrd, complainno, callregthr, calltimings, callregoememail, callregdsi, datetimee, resolby, demandoem, partnm, oemeng,
-        digieng, timeofclos, svr, downntym, calllogtym, email, warrantydatetym, remarksifany FROM digitechcrm" . 
-        ($selectedBank ? " WHERE bnkname = '" . $conn->real_escape_string($selectedBank) . "'" : "") . 
-        " ORDER BY tiknumber DESC";
+        digieng, timeofclos, svr, downntym, calllogtym, email, warrantydatetym, remarksifany, approvalpending, bankend, bankendtext FROM digitechcrm" .
+        ($selectedBank ? " WHERE bnkname = '" . $conn->real_escape_string($selectedBank) . "'" : "") .
+        // Pair each ticket's registration and closure together: group by the
+        // unified ticket number (registration uses tiknumber, closure uses
+        // tickview), newest first, registration shown before its closure.
+        " ORDER BY (CASE WHEN tiknumber <> '' THEN tiknumber ELSE tickview END) DESC, (CASE WHEN tiknumber <> '' THEN 0 ELSE 1 END) ASC";
 
 $result = $conn->query($sql);
 
@@ -289,6 +292,10 @@ if (!$result) {
             <?php else: ?>
                 <img src="../images/ticket-16.png" alt="Ticket Icon"> Ticket Number: <?php echo htmlspecialchars($rows['tiknumber']); ?>
             <?php endif; ?>
+            <?php $isClose = in_array($rows['tktstatusdetails'], array('Pending', 'Closed')); ?>
+            <span style="margin-left:10px; padding:2px 8px; border-radius:4px; font-size:12px; background:<?php echo $isClose ? '#8e1b1b' : '#1e7d3c'; ?>; color:#fff;">
+                <?php echo $isClose ? 'CLOSED (' . htmlspecialchars($rows['tktstatusdetails']) . ')' : 'REGISTERED'; ?>
+            </span>
         </div>
         <div class="col-md-1 justify-content-end ">
             <form action="delete_ticket.php" method="post" style="margin: 0;">
@@ -310,6 +317,10 @@ if (!$result) {
                     <p><strong>Custodian No:</strong> <?php echo htmlspecialchars($rows['custnumber']); ?></p>
                     <p><strong>Type of Call:</strong> <?php echo htmlspecialchars($rows['calltype']); ?></p>
                     <p><strong>Warranty status:</strong> <?php echo htmlspecialchars($rows['warrantystatus']); ?></p>
+                    <p><strong>Approval Pending (Bank End):</strong> <?php echo htmlspecialchars($rows['approvalpending']); ?></p>
+                    <?php if (!empty($rows['bankendtext'])): ?>
+                    <p><strong>Bank End details:</strong> <?php echo htmlspecialchars($rows['bankendtext']); ?></p>
+                    <?php endif; ?>
                     <p><strong>Preventive Maintenance:</strong> <?php echo htmlspecialchars($rows['prevmaintain']); ?></p>
                     <p><strong>Stationary Delivered:</strong> <?php echo htmlspecialchars($rows['stationarydelvrd']); ?></p> 
                     <p><strong>Error Code:</strong> <?php echo htmlspecialchars($rows['error']); ?></p>              

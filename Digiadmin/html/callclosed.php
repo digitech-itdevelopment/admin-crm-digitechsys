@@ -561,7 +561,8 @@ $conn = getDbConnection();
                             <label>Ticket No:</label>
                         </div>
                         <div class="col-md-12">
-                            <input type="text" name="ticketview" class="form-control rounded rounded-5">
+                            <input type="text" name="ticketview" id="ticketview" autocomplete="off" placeholder="Type ticket number to search open tickets..." class="form-control rounded rounded-5" onkeyup="searchTickets(this.value)">
+                            <div id="ticketSuggestions" class="list-group" style="position:absolute; z-index:2000; width:95%; max-height:220px; overflow-y:auto; display:none; box-shadow:0 2px 6px rgba(0,0,0,.2);"></div>
 
                         </div>
                     </div>
@@ -627,6 +628,8 @@ $conn = getDbConnection();
                                 <option value="KCCB">KCCB</options>
                                 <option value="HPSCB">HPSCB</options>
                                 <option value="JCCB">JCCB</options>
+                                <option value="JKSCB">JKSCB</options>
+                                <option value="CSFB">CSFB</options>
                             </select>
                         </div>
                     </div>
@@ -758,7 +761,6 @@ $conn = getDbConnection();
                                 <option value="Not Applicable">Please Select</option>
                                 <option class="BLA Non-AMC UPS" value="Under-Warranty">Under-Warranty</option>
                                 <option class="BLA Non-AMC UPS" value="Non-Warranty">Non-Warranty</option>
-                                <option class="AMC" value="AGS">AGS</option>
                                 <option class="AMC" value="Dibold">Dibold</option>
                                 <option class="AMC" value="dsi">DSI</option>
                             </select>
@@ -856,6 +858,25 @@ $conn = getDbConnection();
 
                     </div> <!--row ends-->
 
+                    <!-- Approval Pending (BANK END) (added) -->
+                    <div class="row py-3">
+                        <div class="col-md-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" name="approvalpending" type="checkbox" id="approvalPendingSwitch" onchange="toggleApprovalText()">
+                                <label class="form-check-label" for="approvalPendingSwitch">Approval Pending (BANK END)</label>
+                            </div>
+                        </div>
+                    </div>
+                    <!--row ends-->
+
+                    <div class="row py-3" id="bankEndTextRow" style="display:none;">
+                        <div class="col-md-12">
+                            <input type="text" name="bankendtext" id="bankendtext" class="form-control rounded rounded-5">
+                        </div>
+                    </div>
+                    <!--row ends-->
+
+
 
 
 
@@ -911,57 +932,7 @@ $conn = getDbConnection();
 
 
 
-                    <div class="row py-3">
-
-                        <div class="col-md-12">
-
-
-
-                            <label>Warranty Call</label>
-                        </div>
-
-                        <div class="row">
-
-                            <div class="col-md-5">
-                                <input type="checkbox" name="callregwithoemtc" id="callregwithoemtc">
-                                <label>Call registered with OEM</label>
-
-
-                            </div>
-
-
-                            <div class="col-md-5" name="callregwithdsi" id="callRegWithDSISection"
-                                style="display: none;">
-
-                                <input type="checkbox" name="callregwithdsi" id="callregwithdsi">
-                                <label>Call registered with DSI</label>
-                            </div>
-
-
-
-                            <div class="col-md-2">
-
-
-                                <label>Date and Time</label>
-
-
-                            </div>
-
-                            <div class="col-md-4">
-
-                                <input type="datetime-local" name="txtDateTime2" id="txtDateTime2"
-                                    class="form-control rounded rounded-5">
-
-
-
-                            </div>
-                        </div>
-
-
-
-
-                    </div>
-                    <!--row ends-->
+                    
 
 
 
@@ -1019,7 +990,7 @@ $conn = getDbConnection();
                         <div class="col-md-3">
 
                             <input ID="demandwithoem" type="checkbox" name="demandwithoem">
-                            <label>Demand with OEM</label>
+                            <label>Demand with DSI</label>
 
 
 
@@ -1245,10 +1216,6 @@ $conn = getDbConnection();
                         </div>
                     </div>
 
-
-
-
-
                     <div class="row text-center">
 
 
@@ -1284,7 +1251,55 @@ $conn = getDbConnection();
         <input type="hidden" name="form_type" value="callclosed">
 
 
-    </form>
+    
+    <script>
+    function toggleApprovalText() {
+        var on = document.getElementById('approvalPendingSwitch').checked;
+        document.getElementById('bankEndTextRow').style.display = on ? '' : 'none';
+        if (!on) { document.getElementById('bankendtext').value = ''; }
+    }
+
+    var ticketResults = [];
+    function tkEsc(v){ return (v == null ? '' : String(v)).replace(/[&<>"']/g, function(c){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+    function searchTickets(q) {
+        var box = document.getElementById('ticketSuggestions');
+        q = (q || '').trim();
+        if (q.length < 1) { box.style.display = 'none'; box.innerHTML = ''; return; }
+        fetch('search_tickets.php?q=' + encodeURIComponent(q))
+            .then(function(r){ return r.json(); })
+            .then(function(list){
+                ticketResults = list || [];
+                if (!ticketResults.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+                box.innerHTML = ticketResults.map(function(t, i){
+                    return '<button type="button" class="list-group-item list-group-item-action" onclick="pickTicket(' + i + ')">'
+                        + tkEsc(t.tiknumber) + ' — ' + tkEsc(t.bnkname) + ' / ' + tkEsc(t.branchname)
+                        + ' (ATM ' + tkEsc(t.atmid) + ')</button>';
+                }).join('');
+                box.style.display = 'block';
+            })
+            .catch(function(){ box.style.display = 'none'; });
+    }
+    function pickTicket(i) {
+        var t = ticketResults[i]; if (!t) return;
+        function set(name, val){ var el = document.querySelector('[name="' + name + '"]'); if (el && val != null) el.value = val; }
+        set('ticketview', t.tiknumber);
+        set('bankname', t.bnkname);
+        set('atmid', t.atmid);
+        set('txtbranchname', t.branchname);
+        set('txtcustodianno', t.custnumber);
+        set('txtcomplaintno', t.complainno);
+        set('typeofcall', t.calltype);
+        set('warrantystatusoem', t.warrantystatus);
+        document.getElementById('ticketSuggestions').style.display = 'none';
+    }
+    document.addEventListener('click', function(e){
+        var box = document.getElementById('ticketSuggestions');
+        var inp = document.getElementById('ticketview');
+        if (box && e.target !== inp && !box.contains(e.target)) { box.style.display = 'none'; }
+    });
+    </script>
+</form>
 
 
 

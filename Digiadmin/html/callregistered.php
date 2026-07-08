@@ -625,6 +625,8 @@ $_SESSION['generated_ticket_number'] = $ticketNumber;
                                 <option value="KCCB">KCCB</options>
                                 <option value="HPSCB">HPSCB</options>
                                 <option value="JCCB">JCCB</options>
+                                <option value="JKSCB">JKSCB</options>
+                                <option value="CSFB">CSFB</options>
                             </select>
                         </div><!--ends col-->
 
@@ -730,6 +732,7 @@ $_SESSION['generated_ticket_number'] = $ticketNumber;
                                 <option value="BLA">BLA</option>
                                 <option value="Non-AMC">Non-AMC</option>
                                 <option value="UPS">UPS</option>
+                                <option value="Stationary">Stationary</option>
                             </select>
                         </div>
                      </div>
@@ -760,7 +763,6 @@ $_SESSION['generated_ticket_number'] = $ticketNumber;
                                 <option value="Not Applicable">Please Select</option>
                                 <option class="BLA Non-AMC UPS" value="Under-Warranty">Under-Warranty</option>
                                 <option class="BLA Non-AMC UPS" value="Non-Warranty">Non-Warranty</option>
-                                <option class="AMC" value="AGS">AGS</option>
                                 <option class="AMC" value="Dibold">Diebold</option>
                              <option class="AMC" value="dsi">DSI</option>
                             </select>
@@ -850,6 +852,33 @@ $_SESSION['generated_ticket_number'] = $ticketNumber;
 
 
 
+                    
+                    <!-- Approval Pending (BANK END) (added) -->
+                    <div class="row py-3">
+                        <div class="col-md-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" name="approvalpending" type="checkbox" id="approvalPendingSwitch" onchange="toggleApprovalText()">
+                                <label class="form-check-label" for="approvalPendingSwitch">Approval Pending (BANK END)</label>
+                            </div>
+                        </div>
+                    </div>
+                    <!--row ends-->
+
+                    <div class="row py-3" id="bankEndTextRow" style="display:none;">
+                        <div class="col-md-12">
+                            <input type="text" name="bankendtext" id="bankendtext" class="form-control rounded rounded-5">
+                        </div>
+                    </div>
+                    <!--row ends-->
+
+                    <script>
+                    function toggleApprovalText() {
+                        var on = document.getElementById('approvalPendingSwitch').checked;
+                        document.getElementById('bankEndTextRow').style.display = on ? '' : 'none';
+                        if (!on) { document.getElementById('bankendtext').value = ''; }
+                    }
+                    </script>
+
                     <div class="row py-3">
                         <div class="col-md-12">
 
@@ -860,125 +889,6 @@ $_SESSION['generated_ticket_number'] = $ticketNumber;
                             </div>
                         </div>
                     </div> <!--row ends-->
-
-
-
-
-
-
-                    <div class="row py-3">
-
-                        <div class="col-md-12">
-
-
-                            <label>Call Registered through:</label>
-
-
-                        </div>
-
-                        <div class="col-md-12">
-
-
-
-                            <select ID="callregthrough" name="callregthrough" class="form-control rounded rounded-5">
-                                <option value="Not Applicable">Please Select</options>
-                                <option value="Email">Email</options>
-                                <option value="Telecalling">Telecalling</options>
-                            </select>
-
-
-
-
-
-
-
-                        </div>
-
-
-
-
-                    </div>
-                    <!--row ends-->
-
-
-
-
-
-
-                    <div class="row py-3">
-                        <div class="col-md-12">
-                            <label>Call timings:</label>
-                            <input type="datetime-local" name="txtDateTime1" id="txtDateTime1"
-                                class="form-control rounded rounded-5" onchange="calculateDowntime()">
-                        </div>
-                    </div>
-                    <!--row ends-->
-
-
-
-
-
-                    <div class="row py-3">
-
-                        <div class="col-md-12">
-
-
-
-                            <label>Warranty Call</label>
-                        </div>
-
-                        <div class="row">
-
-                            <div class="col-md-5">
-                                <input type="checkbox" name="callregwithoemtc" id="callregwithoemtc">
-                                <label>Call registered with OEM</label>
-
-
-                            </div>
-
-
-                            <div class="col-md-5" name="callregwithdsi" id="callRegWithDSISection"
-                                style="display: none;">
-
-                                <input type="checkbox" name="callregwithdsi" id="callregwithdsi">
-                                <label>Call registered with DSI</label>
-                            </div>
-
-
-
-                            <div class="col-md-2">
-
-
-                                <label>Date and Time</label>
-
-
-                            </div>
-
-                            <div class="col-md-4">
-
-                                <input type="datetime-local" name="txtDateTime2" id="txtDateTime2"
-                                    class="form-control rounded rounded-5">
-
-
-
-                            </div>
-                        </div>
-
-
-
-
-                    </div>
-                    <!--row ends-->
-
-
-
-
-
-
-
-
-
-
 
                     <div class="row text-center">
 
