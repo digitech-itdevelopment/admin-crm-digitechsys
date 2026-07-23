@@ -852,7 +852,19 @@ $_SESSION['generated_ticket_number'] = $ticketNumber;
 
 
 
-                    
+
+                    <div class="row py-3">
+                        <div class="col-md-12"><label>Call Registered through:</label></div>
+                        <div class="col-md-12">
+                            <select ID="callregthrough" name="callregthrough" class="form-control rounded rounded-5">
+                                <option value="Not Applicable">Please Select</option>
+                                <option value="Email">Email</option>
+                                <option value="Telecalling">Telecalling</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!--row ends-->
+
                     <!-- Approval Pending (BANK END) (added) -->
                     <div class="row py-3">
                         <div class="col-md-12">
