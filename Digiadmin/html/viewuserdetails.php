@@ -28,11 +28,16 @@ if ($bankResult) {
     }
 }
 
+foreach (array('JKSCB', 'CSFB') as $fixedBank) {
+    if (!in_array($fixedBank, $bankNames, true)) { $bankNames[] = $fixedBank; }
+}
+sort($bankNames);
+
 // Get selected bank name from request
 $selectedBank = isset($_POST['bank']) ? $_POST['bank'] : '';
 
 // SQL query to select data from database based on selected bank
-$sql = "SELECT tiknumber, error, issues, stationaryreq, atmworking, callregtimings, tktstatusdetails, tickview, branchname, bnkname, atmid, custnumber, calltype, warrantystatus,
+$sql = "SELECT id, tiknumber, error, issues, stationaryreq, atmworking, callregtimings, tktstatusdetails, tickview, branchname, bnkname, atmid, custnumber, calltype, warrantystatus,
         prevmaintain, stationarydelvrd, complainno, callregthr, calltimings, callregoememail, callregdsi, datetimee, resolby, demandoem, partnm, oemeng,
         digieng, timeofclos, svr, downntym, calllogtym, email, warrantydatetym, remarksifany, approvalpending, bankend, bankendtext FROM digitechcrm" .
         ($selectedBank ? " WHERE bnkname = '" . $conn->real_escape_string($selectedBank) . "'" : "") .
@@ -235,79 +240,43 @@ if (!$result) {
 
              
 
-                <!-- Hidden table for DataTables functionality -->
-                <table id="hiddenTable" class="display" style="display:none;">
-                    <thead>
-                        <tr>
-                        <th>Ticket Number</th>
-                    <th>Ticket Status</th>
-                    <th>Complain Number</th>
-                    <th>Call Register Date & Time</th>
-                    <th>Branch Name</th>
-                    <th>Bank Name</th>
-                    <th>ATM ID</th>
-                    <th>Custodian No</th>
-                    <th>Type of Call</th>
-                    <th>Warranty status</th>
-                     <th>Preventive Maintenance</th> 
-                    <th>Stationary Delivered</th>
-                    <th>Error Code</th>
-                    <th>Issues</th>
-                    <th>Stationary Required</th>
-                    <th>ATM Status</th>
-                    <th>Call Registered Through</th>
-                    <th>Call Timings</th>
-                    <th>Call Registered with OEM</th>
-                    <th>Call Registered with Digitech</th>
-                    <th>Date and Time</th>
-                    <th>Resolved by</th>
-                    <th>Part Demand With OEM</th>
-                    <th>Name of Part</th>
-                    <th>Name of OEM Engineer</th>
-                    <th>Name of Digitech Engineer</th>
-                    <th>Time of Close</th>
-                    <th>SCR Documents</th>
-                    <th>Downtime</th>
-                    <th>Excess Downtime</th>
-                    <th>Customer Information through</th>
-                    <th>Closure Date and Time</th>
-                    <th>Remarks if any</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php
-
-                        $result->data_seek(0); // Reset result set pointer to the beginning
-                        
-                        while ($rows = $result->fetch_assoc()) { ?>
-                          
-                          <div class="card">
-              <div class="card-header">
-    <div class="row">
-        <div class=" col-md-11">
-            <?php if ($rows['tktstatusdetails'] == 'Pending'): ?>
-                <img src="../images/ticket-16.png" alt="Ticket Icon"> Ticket Number: <?php echo htmlspecialchars($rows['tickview']); ?>
-            <?php elseif ($rows['tktstatusdetails'] == 'Closed'): ?>
-                <img src="../images/ticket-16.png" alt="Ticket Icon"> Ticket Number: <?php echo htmlspecialchars($rows['tickview']); ?>
-            <?php else: ?>
-                <img src="../images/ticket-16.png" alt="Ticket Icon"> Ticket Number: <?php echo htmlspecialchars($rows['tiknumber']); ?>
-            <?php endif; ?>
-            <?php $isClose = in_array($rows['tktstatusdetails'], array('Pending', 'Closed')); ?>
-            <span style="margin-left:10px; padding:2px 8px; border-radius:4px; font-size:12px; background:<?php echo $isClose ? '#8e1b1b' : '#1e7d3c'; ?>; color:#fff;">
-                <?php echo $isClose ? 'CLOSED (' . htmlspecialchars($rows['tktstatusdetails']) . ')' : 'REGISTERED'; ?>
-            </span>
-        </div>
-        <div class="col-md-1 justify-content-end ">
-            <form action="delete_ticket.php" method="post" style="margin: 0;">
-                <input type="hidden" name="ticket_id" value="<?php echo htmlspecialchars($rows['tiknumber']); ?>">
-                <input style="color:black;" class=" form-control font-16" type="submit" value="Delete" onclick="return confirm('Are you sure you want to delete this ticket number: <?php echo htmlspecialchars($rows['tiknumber']); ?> ?');">
-            </form>
-        </div>
-    </div>
-</div>
-
-
-                <div class="card-body">
+                <!-- Cards to display records -->
+                <?php
+                $result->data_seek(0);
+                $groups = array();
+                $order  = array();
+                while ($rows = $result->fetch_assoc()) {
+                    $uid = ($rows['tiknumber'] !== '') ? $rows['tiknumber'] : $rows['tickview'];
+                    if (!isset($groups[$uid])) { $groups[$uid] = array(); $order[] = $uid; }
+                    $groups[$uid][] = $rows;
+                }
+                foreach ($order as $uid):
+                    usort($groups[$uid], function($a, $b){ return ($a['tiknumber'] !== '' ? 0 : 1) - ($b['tiknumber'] !== '' ? 0 : 1); });
+                ?>
+                  <div class="row">
+                    <?php foreach ($groups[$uid] as $rows):
+                        $isClose = in_array($rows['tktstatusdetails'], array('Pending','Closed')); ?>
+                      <div class="col-md-6">
+                        <div class="card">
+                          <div class="card-header">
+                            <div class="row">
+                              <div class="col-md-9">
+                                <img src="../images/ticket-16.png" alt="Ticket Icon">
+                                Ticket Number: <?php echo htmlspecialchars($isClose ? $rows['tickview'] : $rows['tiknumber']); ?>
+                                <span style="margin-left:8px; padding:2px 8px; border-radius:4px; font-size:12px; background:<?php echo $isClose ? '#8e1b1b' : '#1e7d3c'; ?>; color:#fff;">
+                                  <?php echo $isClose ? 'CLOSED (' . htmlspecialchars($rows['tktstatusdetails']) . ')' : 'REGISTERED'; ?>
+                                </span>
+                              </div>
+                              <div class="col-md-3">
+                                <form action="delete_ticket.php" method="post" style="margin:0;">
+                                  <input type="hidden" name="ticket_id" value="<?php echo (int)$rows['id']; ?>">
+                                  <input style="color:black;" class="form-control font-16" type="submit" value="Delete"
+                                         onclick="return confirm('Delete this <?php echo $isClose ? 'closure' : 'registration'; ?> record for ticket <?php echo htmlspecialchars($isClose ? $rows['tickview'] : $rows['tiknumber']); ?>?');">
+                                </form>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="card-body">
                     <p><strong>Ticket Status:</strong> <?php echo htmlspecialchars($rows['tktstatusdetails']); ?></p>
                     <p><strong>Complain Number:</strong> <?php echo htmlspecialchars($rows['complainno']); ?></p>
                     <p><strong>Call Register Date & Time:</strong> <?php echo htmlspecialchars($rows['callregtimings']); ?></p>
@@ -322,8 +291,8 @@ if (!$result) {
                     <p><strong>Bank End details:</strong> <?php echo htmlspecialchars($rows['bankendtext']); ?></p>
                     <?php endif; ?>
                     <p><strong>Preventive Maintenance:</strong> <?php echo htmlspecialchars($rows['prevmaintain']); ?></p>
-                    <p><strong>Stationary Delivered:</strong> <?php echo htmlspecialchars($rows['stationarydelvrd']); ?></p> 
-                    <p><strong>Error Code:</strong> <?php echo htmlspecialchars($rows['error']); ?></p>              
+                    <p><strong>Stationary Delivered:</strong> <?php echo htmlspecialchars($rows['stationarydelvrd']); ?></p>
+                    <p><strong>Error Code:</strong> <?php echo htmlspecialchars($rows['error']); ?></p>
                     <p><strong>Issues:</strong> <?php echo htmlspecialchars($rows['issues']); ?></p>
                     <p><strong>Stationary Required:</strong> <?php echo htmlspecialchars($rows['stationaryreq']); ?></p>
                     <p><strong>Atm Status:</strong> <?php echo htmlspecialchars($rows['atmworking']); ?></p>
@@ -354,26 +323,19 @@ if (!$result) {
                     <p><strong>Customer Information through:</strong> <?php echo htmlspecialchars($rows['email']); ?></p>
                     <p><strong>Closure Date and Time:</strong> <?php echo htmlspecialchars($rows['warrantydatetym']); ?></p>
                     <p><strong>Remarks if any:</strong> <?php echo htmlspecialchars($rows['remarksifany']); ?></p>
-                </div>
-            </div>
-        <?php } ?>
+                          </div>
+                        </div>
+                      </div>
+                    <?php endforeach; ?>
+                  </div>
+                <?php endforeach; ?>
 
-
-
-                      
-                    </tbody>
-                </table>
-
-                <!-- Cards to display records -->
-                
             </div>
         </div>
     </div>
 
        <script>
         $(document).ready(function() {
-            $('#hiddenTable').DataTable();
-
             $('#bankDropdown').change(function() {
                 $('#filterForm').submit();
             });
@@ -415,10 +377,6 @@ if (!$result) {
            margin: 12px 0;
            border: 1px solid #000;
            padding: 10px;
-       }
-
-       #hiddenTable {
-           display: none;
        }
    </style>
 </body>
