@@ -1,30 +1,16 @@
 <?php
 session_start();
+if (!isset($_SESSION['userdata'])) { header("Location: adminlogin.php"); exit; }
 require_once 'config.php';
 $conn = getDbConnection();
 
-
-// Check if ticket_id is set
-if (isset($_POST['ticket_id'])) {
-    $ticket_id = $_POST['ticket_id'];
-
-    // Sanitize the ticket ID to prevent SQL injection
-    $ticket_id = mysqli_real_escape_string($conn, $ticket_id);
-
-
-
-    // SQL query to delete the ticket
-    $sql = "DELETE FROM digitechcrm WHERE tiknumber = ?";
-          $stmt = $conn->prepare($sql);
-               $stmt->bind_param("s", $ticket_id);
-
-
-    if ($stmt->execute()) {
-        header("Location: viewuserdetails.php");
-    } else {
-        echo "Error updating record: " . $stmt->error;
-    }
-
-    $stmt->close();
+$ticket_id = isset($_POST['ticket_id']) ? trim($_POST['ticket_id']) : '';
+if ($ticket_id !== '' && ctype_digit($ticket_id)) {
+    try {
+        $stmt = $conn->prepare("DELETE FROM digitechcrm WHERE id = ?");
+        $stmt->bind_param("i", $ticket_id);
+        $stmt->execute();
+    } catch (\Throwable $e) { error_log("delete_ticket failed: " . $e->getMessage()); }
 }
-?>
+header("Location: viewuserdetails.php");
+exit;
