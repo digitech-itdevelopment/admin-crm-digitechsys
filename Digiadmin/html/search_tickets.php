@@ -2,6 +2,7 @@
 // Live ticket search for the Call Close form.
 // Returns JSON of OPEN tickets (registered but not yet closed) matching ?q=.
 session_start();
+if (!isset($_SESSION['userdata'])) { header('Content-Type: application/json'); echo json_encode([]); exit; }
 require_once 'config.php';
 header('Content-Type: application/json');
 
