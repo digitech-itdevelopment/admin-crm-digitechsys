@@ -1,58 +1,33 @@
 <?php
 session_start();
-
+if (!isset($_SESSION['userdata'])) { header("Location: adminlogin.php"); exit; }
 require_once 'config.php';
 $conn = getDbConnection();
+if ($conn->connect_error) { die("Connection failed: " . $conn->connect_error); }
 
-// Check connection
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_qty'])) {
+    $id = (int)$_POST['id']; $qty = (int)$_POST['quantity'];
+    try { $stmt = $conn->prepare("UPDATE inventory SET quantity=? WHERE id=?"); $stmt->bind_param("ii",$qty,$id); $stmt->execute(); }
+    catch (\Throwable $e) { error_log("inventory update failed: ".$e->getMessage()); }
+    header("Location: viewinventorystatus.php"); exit();
 }
-
-// Handle form submission
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update'])) {
-    $id = $_POST['id'];
-    $cardreader = $_POST['cardreader'];
-    $cassette = $_POST['cassette'];
-    $shuttercable = $_POST['shuttercable'];
-    $hooddoorlock = $_POST['hooddoorlock'];
-    $softkeys = $_POST['softkeys'];
-    $divertcassette = $_POST['divertcassette'];
-    $belts = $_POST['belts'];
-    $roller = $_POST['roller'];
-    $cpufan = $_POST['cpufan'];
-    $clamp = $_POST['clamp'];
-    $ddu = $_POST['ddu'];
-
-    if (!empty($id) && !empty($cardreader) && !empty($cassette) && !empty($shuttercable) && !empty($hooddoorlock) && !empty($softkeys) && !empty($divertcassette) && !empty($belts) && !empty($roller) && !empty($cpufan) && !empty($clamp) && !empty($ddu)) {
-        // Update query
-        $update_sql = "UPDATE stocklist SET cardreader=?, cassette=?, shuttercable=?, hooddoorlock=?, softkeys=?, divertcassette=?, belts=?, roller=?, cpufan=?, clamp=?, ddu=? WHERE id=?";
-        $stmt = $conn->prepare($update_sql);
-
-        if ($stmt === false) {
-            die("Prepare failed: " . $conn->error);
-        }
-
-        $stmt->bind_param("sssssssssssi", $cardreader, $cassette, $shuttercable, $hooddoorlock, $softkeys, $divertcassette, $belts, $roller, $cpufan, $clamp, $ddu, $id);
-
-        if ($stmt->execute()) {
-            header("Location: viewinventorystatus.php");
-        } else {
-            echo "Error updating record: " . $stmt->error;
-        }
-
-        $stmt->close();
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_part'])) {
+    $name = trim($_POST['part_name'] ?? '');
+    $key  = strtolower(preg_replace('/[^A-Za-z0-9]/','',$name));
+    $qty  = (int)($_POST['quantity'] ?? 0);
+    if ($name !== '' && $key !== '') {
+        try {
+            $stmt = $conn->prepare("INSERT IGNORE INTO inventory (part_key, part_name, quantity) VALUES (?,?,?)");
+            $stmt->bind_param("ssi",$key,$name,$qty); $stmt->execute();
+            $_SESSION['inv_notice'] = ($stmt->affected_rows === 0) ? "A part with a similar name already exists." : "Part added.";
+        } catch (\Throwable $e) { error_log("inventory add failed: ".$e->getMessage()); }
     }
+    header("Location: viewinventorystatus.php"); exit();
 }
-
-// SQL query to select data from database
-$sql = "SELECT id, cardreader, cassette, shuttercable, hooddoorlock, softkeys, divertcassette, belts, roller, cpufan, clamp, ddu FROM stocklist";
-$result = $conn->query($sql);
-
-// Check if query executed successfully
-if (!$result) {
-    die("Query failed: " . $conn->error);
-}
+$notice = $_SESSION['inv_notice'] ?? ''; unset($_SESSION['inv_notice']);
+try { $result = $conn->query("SELECT id, part_key, part_name, quantity FROM inventory ORDER BY part_name ASC"); }
+catch (\Throwable $e) { die("Inventory table unavailable. Run the inventory migration first."); }
+if (!$result) { die("Query failed: " . $conn->error); }
 ?>
 
 
@@ -444,80 +419,33 @@ if (!$result) {
 
         <div class="col-md-10">
 
-        <table class="table table-bordered border-success">
-            <thead>
-                <tr style="font-size:20px">
-                    <!--<th>ID <i class="fa fa-id-badge" aria-hidden="true"></i>-->
-                    <!--</th>-->
-                    <th>Part Names <i class="fa  fa-level-down" aria-hidden="true"></i></th>
-                    <th>Update Record <i class="fa fa-pencil-square-o" aria-hidden="true"></i></th>
-
-                </tr>
-            </thead>
-            <tbody style="font-size:20px;">
-                <?php while ($rows = $result->fetch_assoc()): ?>
-                <tr>
-                    <form method="post" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]);?>">
-                        <!--<td><?php echo $rows['id']; ?></td>-->
-                        <td>
-                            <div class="form-group">
-                                <label for="cardreader">Card Reader</label>
-                                <input type="text" name="cardreader" class="form-control" value="<?php echo htmlspecialchars($rows['cardreader']); ?>" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="cassette">Cassette</label>
-                                <input type="text" name="cassette" class="form-control" value="<?php echo htmlspecialchars($rows['cassette']); ?>" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="shuttercable">Shutter Cable</label>
-                                <input type="text" name="shuttercable" class="form-control" value="<?php echo htmlspecialchars($rows['shuttercable']); ?>" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="hooddoorlock">Hood Door Lock</label>
-                                <input type="text" name="hooddoorlock" class="form-control" value="<?php echo htmlspecialchars($rows['hooddoorlock']); ?>" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="softkeys">Soft Keys</label>
-                                <input type="text" name="softkeys" class="form-control" value="<?php echo htmlspecialchars($rows['softkeys']); ?>" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="divertcassette">Divert Cassette</label>
-                                <input type="text" name="divertcassette" class="form-control" value="<?php echo htmlspecialchars($rows['divertcassette']); ?>" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="belts">Belts</label>
-                                <input type="text" name="belts" class="form-control" value="<?php echo htmlspecialchars($rows['belts']); ?>" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="roller">Roller</label>
-                                <input type="text" name="roller" class="form-control" value="<?php echo htmlspecialchars($rows['roller']); ?>" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="cpufan">CPU Fan</label>
-                                <input type="text" name="cpufan" class="form-control" value="<?php echo htmlspecialchars($rows['cpufan']); ?>" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="clamp">Clamp</label>
-                                <input type="text" name="clamp" class="form-control" value="<?php echo htmlspecialchars($rows['clamp']); ?>" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="ddu">DDU</label>
-                                <input type="text" name="ddu" class="form-control" value="<?php echo htmlspecialchars($rows['ddu']); ?>" required>
-                            </div>
-                        </td>
-                        <td>
-                            <input type="hidden" name="id" value="<?php echo $rows['id']; ?>">
-                            <div class="d-grid gap-2 col-6 mx-auto">
-  <button type="submit" name="update" class="btn btn-primary">Update</button>
+<div class="container" style="margin-top:20px;">
+  <?php if (!empty($notice)): ?><div class="alert alert-info"><?php echo htmlspecialchars($notice); ?></div><?php endif; ?>
+  <div style="overflow-x:auto;">
+  <table class="table table-bordered">
+    <thead><tr><th>Part Name</th><th style="width:180px;">Quantity</th><th style="width:110px;"></th></tr></thead>
+    <tbody>
+    <?php while ($row = $result->fetch_assoc()): ?>
+      <tr>
+        <td><?php echo htmlspecialchars($row['part_name']); ?></td>
+        <td>
+          <form method="post" action="viewinventorystatus.php" style="margin:0; display:flex; gap:6px;">
+            <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
+            <input type="number" name="quantity" value="<?php echo (int)$row['quantity']; ?>" class="form-control" min="0">
+        </td>
+        <td><button type="submit" name="update_qty" class="btn btn-primary">Save</button></form></td>
+      </tr>
+    <?php endwhile; ?>
+    </tbody>
+  </table>
+  </div>
+  <h5 class="mt-4">Add a new part</h5>
+  <form method="post" action="viewinventorystatus.php" class="row g-2">
+    <div class="col-md-6"><input type="text" name="part_name" class="form-control" placeholder="Part name" required></div>
+    <div class="col-md-3"><input type="number" name="quantity" class="form-control" value="0" min="0"></div>
+    <div class="col-md-3"><button type="submit" name="add_part" class="btn btn-success">Add Part</button></div>
+  </form>
 </div>
-
-
-                        </td>
-                    </form>
-                </tr>
-                <?php endwhile; ?>
-            </tbody>
-        </table>
 
         </div>
 
