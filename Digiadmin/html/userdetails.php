@@ -235,15 +235,12 @@ $stmt->bind_param("sssssssssssssssssssssssssssssssssssss",
 
 if ($stmt->execute()) {
 
-    // Decrement stock for the selected part, if any. Best-effort only:
-    // an empty part name (e.g. on the call-registration form) would otherwise
-    // build invalid SQL and throw AFTER the record was already saved. Guard
-    // on a non-empty name and never let a stock error crash the request.
-    if ($partnm !== '') {
+    // Decrement inventory for the selected part, if any (best-effort, floored at 0).
+    if ($partnm !== '' && $partnm !== 'Not Applicable') {
         try {
-            $columnToUpdate = $conn->real_escape_string($partnm);
-            $updateStockSql = "UPDATE stocklist SET `$columnToUpdate` = `$columnToUpdate` - 1 WHERE `$columnToUpdate` IS NOT NULL";
-            $conn->query($updateStockSql);
+            $up = $conn->prepare("UPDATE inventory SET quantity = quantity - 1 WHERE part_key = ? AND quantity > 0");
+            $up->bind_param("s", $partnm);
+            $up->execute();
         } catch (\Throwable $stockError) {
             error_log("Digitech CRM: stock update skipped/failed: " . $stockError->getMessage());
         }
