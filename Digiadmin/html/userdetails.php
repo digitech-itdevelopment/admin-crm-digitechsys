@@ -31,6 +31,8 @@ $callregtime = isset($_POST['txtDateTimeregcall']) ? $_POST['txtDateTimeregcall'
 $ticketnumberr = isset($_POST['ticketnumber']) ? $_POST['ticketnumber'] : '';
 $ticketview = isset($_POST['ticketview']) ? $_POST['ticketview'] : '';
 $ticketstat = isset($_POST['ticketstatus']) ? $_POST['ticketstatus'] : '';
+// Registration calls are "Pending" until closed (close form supplies its own ticketstatus).
+if ((isset($_POST['form_type']) ? $_POST['form_type'] : '') === 'callregistered') { $ticketstat = 'Pending'; }
 $bname = isset($_POST['txtbranchname']) ? $_POST['txtbranchname'] : '';
 $banknamee = isset($_POST['bankname']) ? $_POST['bankname'] : '';
 $atmidd = isset($_POST['atmid']) ? $_POST['atmid'] : '';
@@ -54,6 +56,7 @@ $email = isset($_POST['emailinfo']) ? 'Yes' : 'No';
 $warrantydatetym = isset($_POST['txtDateTime5']) ? $_POST['txtDateTime5'] : '';
 $remarksifany = isset($_POST['txtremarks']) ? $_POST['txtremarks'] : '';
 $error = isset($_POST['errorcode']) ? $_POST['errorcode'] : '';
+$partdemand = isset($_POST['partdemand']) ? $_POST['partdemand'] : '';
 $approvalpending = isset($_POST['approvalpending']) ? 'Yes' : 'No';
 $bankend = isset($_POST['bankend']) ? 'Yes' : 'No';
 $bankendtext = isset($_POST['bankendtext']) ? $_POST['bankendtext'] : '';
@@ -221,17 +224,17 @@ $sql = "INSERT INTO digitechcrm (
     tiknumber, error, issues, stationaryreq, atmworking, callregtimings, tickview, tktstatusdetails, branchname, 
     bnkname, atmid, custnumber, calltype, warrantystatus, prevmaintain, stationarydelvrd, complainno, callregthr, 
     calltimings, callregoememail, callregdsi, datetimee, resolby, demandoem, partnm, oemeng, digieng, timeofclos, 
-    calllogtym, email, remarksifany, warrantydatetym, downntym, svr, approvalpending, bankend, bankendtext) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    calllogtym, email, remarksifany, warrantydatetym, downntym, svr, approvalpending, bankend, bankendtext, partdemand)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("sssssssssssssssssssssssssssssssssssss",
+$stmt->bind_param("ssssssssssssssssssssssssssssssssssssss",
 
     $ticketnumberr, $error, $issues, $stationaryreq_str, $atmworking, $callregtime, $ticketview, $ticketstat, $bname,
     $banknamee, $atmidd, $custnumber, $calltype, $warrantystatus, $prevmaintain, $stationarydelvrd,
     $complainnumber, $callregthr, $calltimings, $callregoememail, $callregdsi, $datetimee,
-    $resolby, $demandoem, $partnm, $oemeng, $digieng, $timeofclos, $calllogtym, $email, $remarksifany, $warrantydatetym, 
-    $downntym, $file_paths_str, $approvalpending, $bankend, $bankendtext);
+    $resolby, $demandoem, $partnm, $oemeng, $digieng, $timeofclos, $calllogtym, $email, $remarksifany, $warrantydatetym,
+    $downntym, $file_paths_str, $approvalpending, $bankend, $bankendtext, $partdemand);
 
 if ($stmt->execute()) {
 
@@ -244,6 +247,15 @@ if ($stmt->execute()) {
         } catch (\Throwable $stockError) {
             error_log("Digitech CRM: stock update skipped/failed: " . $stockError->getMessage());
         }
+    }
+
+    // On a closure, propagate the status to the original registration row so both show it.
+    if ((isset($_POST['form_type']) ? $_POST['form_type'] : '') !== 'callregistered' && $ticketview !== '') {
+        try {
+            $su = $conn->prepare("UPDATE digitechcrm SET tktstatusdetails = ? WHERE tiknumber = ? AND tiknumber <> ''");
+            $su->bind_param("ss", $ticketstat, $ticketview);
+            $su->execute();
+        } catch (\Throwable $e) { error_log("Digitech CRM: reg status update failed: " . $e->getMessage()); }
     }
 
     // Set success message and redirect. No output is echoed before this point,

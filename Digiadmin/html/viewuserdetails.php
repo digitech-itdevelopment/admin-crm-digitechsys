@@ -39,7 +39,7 @@ $selectedBank = isset($_POST['bank']) ? $_POST['bank'] : '';
 // SQL query to select data from database based on selected bank
 $sql = "SELECT id, tiknumber, error, issues, stationaryreq, atmworking, callregtimings, tktstatusdetails, tickview, branchname, bnkname, atmid, custnumber, calltype, warrantystatus,
         prevmaintain, stationarydelvrd, complainno, callregthr, calltimings, callregoememail, callregdsi, datetimee, resolby, demandoem, partnm, oemeng,
-        digieng, timeofclos, svr, downntym, calllogtym, email, warrantydatetym, remarksifany, approvalpending, bankend, bankendtext FROM digitechcrm" .
+        digieng, timeofclos, svr, downntym, calllogtym, email, warrantydatetym, remarksifany, approvalpending, bankend, bankendtext, partdemand FROM digitechcrm" .
         ($selectedBank ? " WHERE bnkname = '" . $conn->real_escape_string($selectedBank) . "'" : "") .
         // Pair each ticket's registration and closure together: group by the
         // unified ticket number (registration uses tiknumber, closure uses
@@ -255,7 +255,7 @@ if (!$result) {
                 ?>
                   <div class="row">
                     <?php foreach ($groups[$uid] as $rows):
-                        $isClose = in_array($rows['tktstatusdetails'], array('Pending','Closed')); ?>
+                        $isClose = ($rows['tiknumber'] === ''); ?>
                       <div class="col-md-6">
                         <div class="card">
                           <div class="card-header">
@@ -267,6 +267,7 @@ if (!$result) {
                                   <?php echo $isClose ? 'CLOSED (' . htmlspecialchars($rows['tktstatusdetails']) . ')' : 'REGISTERED'; ?>
                                 </span>
                               </div>
+                              <?php if ($isClose): ?>
                               <div class="col-md-3">
                                 <form action="delete_ticket.php" method="post" style="margin:0;">
                                   <input type="hidden" name="ticket_id" value="<?php echo (int)$rows['id']; ?>">
@@ -274,10 +275,11 @@ if (!$result) {
                                          onclick="return confirm('Delete this <?php echo $isClose ? 'closure' : 'registration'; ?> record for ticket <?php echo htmlspecialchars($isClose ? $rows['tickview'] : $rows['tiknumber']); ?>?');">
                                 </form>
                               </div>
+                              <?php endif; ?>
                             </div>
                           </div>
                           <div class="card-body">
-                    <p><strong>Ticket Status:</strong> <?php echo htmlspecialchars($rows['tktstatusdetails']); ?></p>
+                    <p><strong>Ticket Status:</strong> <?php echo htmlspecialchars($rows['tktstatusdetails'] !== '' ? $rows['tktstatusdetails'] : ($rows['tiknumber'] !== '' ? 'Pending' : '')); ?></p>
                     <p><strong>Complain Number:</strong> <?php echo htmlspecialchars($rows['complainno']); ?></p>
                     <p><strong>Call Register Date & Time:</strong> <?php echo htmlspecialchars($rows['callregtimings']); ?></p>
                     <p><strong>Branch Name:</strong> <?php echo htmlspecialchars($rows['branchname']); ?></p>
@@ -302,7 +304,7 @@ if (!$result) {
                     <p><strong>Call Registered with Digitech:</strong> <?php echo htmlspecialchars($rows['callregdsi']); ?></p>
                     <p><strong>Date and Time:</strong> <?php echo htmlspecialchars($rows['datetimee']); ?></p>
                     <p><strong>Resolved by:</strong> <?php echo htmlspecialchars($rows['resolby']); ?></p>
-                    <p><strong>Part Demand With OEM:</strong> <?php echo htmlspecialchars($rows['demandoem']); ?></p>
+                    <p><strong>Part Demand:</strong> <?php echo htmlspecialchars($rows['partdemand']); ?></p>
                     <p><strong>Name of Part:</strong> <?php echo htmlspecialchars($rows['partnm']); ?></p>
                     <p><strong>Name of OEM Engineer:</strong> <?php echo htmlspecialchars($rows['oemeng']); ?></p>
                     <p><strong>Name of Digitech Engineer:</strong> <?php echo htmlspecialchars($rows['digieng']); ?></p>
