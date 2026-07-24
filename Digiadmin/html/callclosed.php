@@ -1037,7 +1037,21 @@ $conn = getDbConnection();
                                 <option value="ddu">DDU </option>
                                 <option value="divertcassette">Divert Cassette </option>
                                 <option value="shuttercable">Shutter Cable </option>
-                                <option value="Stacker">Stacker </option>
+                                <option value="k80printer">K80 Printer</option>
+                                <option value="printerhead">Printer Head</option>
+                                <option value="rejectstopelement">Reject Stop Element</option>
+                                <option value="shuttermotor">Shutter Motor</option>
+                                <option value="stackerunit4">Stacker Unit4</option>
+                                <option value="camslock">Cams Lock</option>
+                                <option value="notepickingroller">Note Picking Roller</option>
+                                <option value="smallbelts">Small Belts</option>
+                                <option value="controllercard4x">4x Controller Card</option>
+                                <option value="atmscreen">ATM Screen</option>
+                                <option value="fascia">Fascia</option>
+                                <option value="horizontaltransport">Horizontal Transport</option>
+                                <option value="housingunit">Housing Unit</option>
+                                <option value="shutter">Shutter</option>
+                                <option value="smps">Power Supply (SMPS)</option>
                             </select>
                         </div>
 
