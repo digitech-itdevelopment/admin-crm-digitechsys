@@ -18,8 +18,17 @@ function getAndUpdateTicketCounter() {
     return str_pad($currentCounter, 6, '0', STR_PAD_LEFT); // Format as 6-digit with leading zeros
 }
 
+function getAndUpdateComplaintCounter() {
+    $counterFile = 'complaint_counter.txt';
+    $current = (file_exists($counterFile)) ? intval(file_get_contents($counterFile)) : 9999;
+    $current++;
+    file_put_contents($counterFile, $current);
+    return $current;
+}
+
 // Get or update ticket counter
 $ticketNumber = getAndUpdateTicketCounter();
+$complaintNumber = getAndUpdateComplaintCounter();
 
 // Store the generated ticket number in session for further processing
 $_SESSION['generated_ticket_number'] = $ticketNumber;
@@ -594,7 +603,7 @@ $_SESSION['generated_ticket_number'] = $ticketNumber;
                         </div>
                         <div class="col-md-12">
                             <input type="text" id="txtcomplaintno" name="txtcomplaintno"
-                                class="form-control rounded rounded-5">
+                                class="form-control rounded rounded-5" value="<?php echo $complaintNumber; ?>" readonly>
                         </div>
                     </div> <!--row ends-->
 
@@ -777,9 +786,22 @@ $_SESSION['generated_ticket_number'] = $ticketNumber;
 
                     </div>
                     <!--row ends-->
-                    
-                    
-                    
+
+                    <div class="row py-3">
+                        <div class="col-md-12"><label>Part Demand:</label></div>
+                        <div class="col-md-12">
+                            <select id="partdemand" name="partdemand" class="form-control rounded rounded-5">
+                                <option value="">Please Select</option>
+                                <option value="OEM">OEM</option>
+                                <option value="DSI">DSI</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!--row ends-->
+
+
+
+
                      <div class="row py-3">
 
 <div class="col-md-12">

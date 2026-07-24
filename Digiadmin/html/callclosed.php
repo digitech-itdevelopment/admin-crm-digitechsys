@@ -776,9 +776,22 @@ $conn = getDbConnection();
 
                     </div>
                     <!--row ends-->
-                    
-                    
-                    
+
+                    <div class="row py-3">
+                        <div class="col-md-12"><label>Part Demand:</label></div>
+                        <div class="col-md-12">
+                            <select id="partdemand" name="partdemand" class="form-control rounded rounded-5">
+                                <option value="">Please Select</option>
+                                <option value="OEM">OEM</option>
+                                <option value="DSI">DSI</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!--row ends-->
+
+
+
+
                     <div class="row py-3">
 
 <div class="col-md-12">
