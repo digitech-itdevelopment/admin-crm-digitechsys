@@ -31,8 +31,6 @@ $callregtime = isset($_POST['txtDateTimeregcall']) ? $_POST['txtDateTimeregcall'
 $ticketnumberr = isset($_POST['ticketnumber']) ? $_POST['ticketnumber'] : '';
 $ticketview = isset($_POST['ticketview']) ? $_POST['ticketview'] : '';
 $ticketstat = isset($_POST['ticketstatus']) ? $_POST['ticketstatus'] : '';
-// Registration calls are "Pending" until closed (close form supplies its own ticketstatus).
-if ((isset($_POST['form_type']) ? $_POST['form_type'] : '') === 'callregistered') { $ticketstat = 'Pending'; }
 $bname = isset($_POST['txtbranchname']) ? $_POST['txtbranchname'] : '';
 $banknamee = isset($_POST['bankname']) ? $_POST['bankname'] : '';
 $atmidd = isset($_POST['atmid']) ? $_POST['atmid'] : '';
@@ -218,6 +216,10 @@ try {
 
 
 
+
+// Registration calls are "Pending" until closed. Set here — AFTER the email
+// routing block above — so it does not change notification recipients.
+if ((isset($_POST['form_type']) ? $_POST['form_type'] : '') === 'callregistered') { $ticketstat = 'Pending'; }
 
 // Prepare and execute insertion into digitechcrm
 $sql = "INSERT INTO digitechcrm (

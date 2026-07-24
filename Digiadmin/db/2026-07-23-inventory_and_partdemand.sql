@@ -1,5 +1,8 @@
 -- Additive migration: inventory table (extensible parts library) + partdemand column.
--- Safe to re-run (IF NOT EXISTS / INSERT IGNORE / additive column via separate ALTER).
+-- Safe to re-run (IF NOT EXISTS / INSERT IGNORE).
+
+-- Part Demand (OEM/DSI) storage for the ticket forms.
+ALTER TABLE digitechcrm ADD COLUMN IF NOT EXISTS partdemand VARCHAR(20) NOT NULL DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS inventory (
   id INT AUTO_INCREMENT PRIMARY KEY,

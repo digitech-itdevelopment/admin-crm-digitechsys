@@ -473,6 +473,29 @@ Tasks 1, 2, 3, 8 are independent of the DB and can deploy anytime. **Task 4 (cre
 - Code: restore each file from its `*.bak-<stamp>` and `git revert` the commit.
 - Inventory: `stocklist` is left intact and is the pre-migration source of truth. **Caveat:** once staff edit quantities on the new page, those live only in `inventory`; rolling back to the `stocklist`-based decrement/grid reverts stock to stale numbers. Before any post-go-live rollback, copy quantities back: for each part, `UPDATE stocklist SET <col> = (SELECT quantity FROM inventory WHERE part_key='<col>')`.
 
+## Addendum — Tasks 10-13 (second requirements batch)
+
+**DB already applied:** `digitechcrm.partdemand VARCHAR(20) NOT NULL DEFAULT ''` (additive) alongside the inventory table.
+
+### Task 10 — Remove Delete from REGISTERED cards (keep on closed)
+`viewuserdetails.php`: render the delete `<form>` only for closure records (`$isClose`), not registration records. Verify: registered cards have no Delete button; closed cards still do.
+
+### Task 11 — Ticket Status lifecycle (Pending → Closed), badge by record type
+- `viewuserdetails.php`: base the REGISTERED/CLOSED badge on record TYPE not status → `$isClose = ($rows['tiknumber'] === '')`. For the "Ticket Status" field, display `$rows['tktstatusdetails']` if non-empty, else `'Pending'` for registration rows (so existing open tickets read Pending without a data backfill).
+- `userdetails.php`: (a) for a registration submit (`form_type == 'callregistered'`) force `$ticketstat = 'Pending'` before insert; (b) after a close submit, update the matching registration: `UPDATE digitechcrm SET tktstatusdetails = ? WHERE tiknumber = ? AND tiknumber <> ''` bound to (`$ticketstat`, `$ticketview`), wrapped in try/catch. Backward-compatible: existing open tickets (empty status) display Pending and update to Closed on close.
+- Verify: new registration shows "Ticket Status: Pending"; after closing it, BOTH its registration card and closure card show "Closed"; an existing open ticket still closes cleanly.
+
+### Task 12 — "Part Demand" (OEM/DSI) on both forms, below Warranty status / above Error Code
+- `callregistered.php` and `callclosed.php`: insert, immediately after the "Warranty status with OEM" field block and before the "Error Code" block, a dropdown `name="partdemand"` (Please Select / OEM / DSI).
+- `userdetails.php`: read `$partdemand = isset($_POST['partdemand']) ? $_POST['partdemand'] : '';` and add `partdemand` to the INSERT column list, placeholders (+1), type string (+`s`), and bind vars.
+- `viewuserdetails.php`: change the existing "Part Demand With OEM: `demandoem`" line to "Part Demand: `partdemand`".
+- Verify: dropdown present on both forms in the right position; a registration with Part Demand=DSI saves `partdemand='DSI'` and the ticket view shows "Part Demand: DSI".
+
+### Task 13 — Complaint number auto-increment from 10000
+- `callregistered.php`: add `getAndUpdateComplaintCounter()` mirroring `getAndUpdateTicketCounter()` but using `complaint_counter.txt` with a starting value so the first number is `10000` (`$current = file_exists($f) ? intval(file_get_contents($f)) : 9999; $current++;`). Auto-fill the complaint field `value="<?php echo $complaintNumber; ?>" readonly`.
+- Backward-compatible: only the registration form changes; the close form keeps carrying the complaint number via the ticket-search auto-fill; existing tickets keep their numbers.
+- Verify: opening the registration form shows an auto complaint number ≥ 10000 that increments; submitting saves it; closing via search carries it over.
+
 ## Known limitations (accepted / flagged to user)
 
 - **New vs Refurbished:** the handwritten note said "New Spares and Refurbished Spares," but per the user's explicit answer parts are added to one library at quantity 0 with a single count — no separate refurbished tracking. Adding a `stock_type` column later is possible but out of scope now.

@@ -428,12 +428,13 @@ if (!$result) { die("Query failed: " . $conn->error); }
     <?php while ($row = $result->fetch_assoc()): ?>
       <tr>
         <td><?php echo htmlspecialchars($row['part_name']); ?></td>
-        <td>
-          <form method="post" action="viewinventorystatus.php" style="margin:0; display:flex; gap:6px;">
+        <td colspan="2">
+          <form method="post" action="viewinventorystatus.php" style="margin:0; display:flex; gap:6px; align-items:center;">
             <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
-            <input type="number" name="quantity" value="<?php echo (int)$row['quantity']; ?>" class="form-control" min="0">
+            <input type="number" name="quantity" value="<?php echo (int)$row['quantity']; ?>" class="form-control" min="0" style="max-width:140px;">
+            <button type="submit" name="update_qty" class="btn btn-primary">Save</button>
+          </form>
         </td>
-        <td><button type="submit" name="update_qty" class="btn btn-primary">Save</button></form></td>
       </tr>
     <?php endwhile; ?>
     </tbody>
