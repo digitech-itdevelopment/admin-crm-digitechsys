@@ -240,10 +240,12 @@ $stmt->bind_param("ssssssssssssssssssssssssssssssssssssss",
 
 if ($stmt->execute()) {
 
-    // Decrement inventory for the selected part, if any (best-effort, floored at 0).
-    if ($partnm !== '' && $partnm !== 'Not Applicable') {
+    // Decrement the chosen stock list (New/Refurbished/None) for the selected part.
+    $partstock = isset($_POST['partstock']) ? $_POST['partstock'] : 'New';
+    if ($partnm !== '' && $partnm !== 'Not Applicable' && $partstock !== 'None') {
+        $stockTable = ($partstock === 'Refurbished') ? 'inventory_refurbished' : 'inventory';
         try {
-            $up = $conn->prepare("UPDATE inventory SET quantity = quantity - 1 WHERE part_key = ? AND quantity > 0");
+            $up = $conn->prepare("UPDATE $stockTable SET quantity = quantity - 1 WHERE part_key = ? AND quantity > 0");
             $up->bind_param("s", $partnm);
             $up->execute();
         } catch (\Throwable $stockError) {

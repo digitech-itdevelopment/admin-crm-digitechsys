@@ -5,19 +5,21 @@ require_once 'config.php';
 $conn = getDbConnection();
 if ($conn->connect_error) { die("Connection failed: " . $conn->connect_error); }
 
+// Map a posted list name to its table (whitelist — never interpolate raw input).
+function inv_table($v) { return ($v === 'refurbished') ? 'inventory_refurbished' : 'inventory'; }
+
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_qty'])) {
-    $id = (int)$_POST['id']; $qty = (int)$_POST['quantity'];
-    try { $stmt = $conn->prepare("UPDATE inventory SET quantity=? WHERE id=?"); $stmt->bind_param("ii",$qty,$id); $stmt->execute(); }
+    $id = (int)$_POST['id']; $qty = (int)$_POST['quantity']; $t = inv_table($_POST['list'] ?? 'new');
+    try { $stmt = $conn->prepare("UPDATE $t SET quantity=? WHERE id=?"); $stmt->bind_param("ii",$qty,$id); $stmt->execute(); }
     catch (\Throwable $e) { error_log("inventory update failed: ".$e->getMessage()); }
     header("Location: viewinventorystatus.php"); exit();
 }
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_part'])) {
-    $name = trim($_POST['part_name'] ?? '');
-    $key  = strtolower(preg_replace('/[^A-Za-z0-9]/','',$name));
-    $qty  = (int)($_POST['quantity'] ?? 0);
+    $name = trim($_POST['part_name'] ?? ''); $key = strtolower(preg_replace('/[^A-Za-z0-9]/','',$name));
+    $qty = (int)($_POST['quantity'] ?? 0); $t = inv_table($_POST['list'] ?? 'new');
     if ($name !== '' && $key !== '') {
         try {
-            $stmt = $conn->prepare("INSERT IGNORE INTO inventory (part_key, part_name, quantity) VALUES (?,?,?)");
+            $stmt = $conn->prepare("INSERT IGNORE INTO $t (part_key, part_name, quantity) VALUES (?,?,?)");
             $stmt->bind_param("ssi",$key,$name,$qty); $stmt->execute();
             $_SESSION['inv_notice'] = ($stmt->affected_rows === 0) ? "A part with a similar name already exists." : "Part added.";
         } catch (\Throwable $e) { error_log("inventory add failed: ".$e->getMessage()); }
@@ -25,9 +27,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_part'])) {
     header("Location: viewinventorystatus.php"); exit();
 }
 $notice = $_SESSION['inv_notice'] ?? ''; unset($_SESSION['inv_notice']);
-try { $result = $conn->query("SELECT id, part_key, part_name, quantity FROM inventory ORDER BY part_name ASC"); }
-catch (\Throwable $e) { die("Inventory table unavailable. Run the inventory migration first."); }
-if (!$result) { die("Query failed: " . $conn->error); }
+try {
+    $resultNew = $conn->query("SELECT id, part_key, part_name, quantity FROM inventory ORDER BY part_name ASC");
+    $resultRefurb = $conn->query("SELECT id, part_key, part_name, quantity FROM inventory_refurbished ORDER BY part_name ASC");
+} catch (\Throwable $e) { die("Inventory table unavailable. Run the inventory migration first."); }
+if (!$resultNew || !$resultRefurb) { die("Query failed: " . $conn->error); }
 ?>
 
 
@@ -421,17 +425,20 @@ if (!$result) { die("Query failed: " . $conn->error); }
 
 <div class="container" style="margin-top:20px;">
   <?php if (!empty($notice)): ?><div class="alert alert-info"><?php echo htmlspecialchars($notice); ?></div><?php endif; ?>
+
+  <h4 class="text-danger">New Parts</h4>
   <div style="overflow-x:auto;">
   <table class="table table-bordered">
-    <thead><tr><th>Part Name</th><th style="width:180px;">Quantity</th><th style="width:110px;"></th></tr></thead>
+    <thead><tr><th>Part Name</th><th style="width:230px;">Quantity</th></tr></thead>
     <tbody>
-    <?php while ($row = $result->fetch_assoc()): ?>
+    <?php while ($row = $resultNew->fetch_assoc()): ?>
       <tr>
         <td><?php echo htmlspecialchars($row['part_name']); ?></td>
-        <td colspan="2">
+        <td>
           <form method="post" action="viewinventorystatus.php" style="margin:0; display:flex; gap:6px; align-items:center;">
+            <input type="hidden" name="list" value="new">
             <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
-            <input type="number" name="quantity" value="<?php echo (int)$row['quantity']; ?>" class="form-control" min="0" style="max-width:140px;">
+            <input type="number" name="quantity" value="<?php echo (int)$row['quantity']; ?>" class="form-control" min="0" style="max-width:120px;">
             <button type="submit" name="update_qty" class="btn btn-primary">Save</button>
           </form>
         </td>
@@ -440,11 +447,39 @@ if (!$result) { die("Query failed: " . $conn->error); }
     </tbody>
   </table>
   </div>
-  <h5 class="mt-4">Add a new part</h5>
-  <form method="post" action="viewinventorystatus.php" class="row g-2">
-    <div class="col-md-6"><input type="text" name="part_name" class="form-control" placeholder="Part name" required></div>
+  <form method="post" action="viewinventorystatus.php" class="row g-2 mb-5">
+    <input type="hidden" name="list" value="new">
+    <div class="col-md-6"><input type="text" name="part_name" class="form-control" placeholder="New part name" required></div>
     <div class="col-md-3"><input type="number" name="quantity" class="form-control" value="0" min="0"></div>
-    <div class="col-md-3"><button type="submit" name="add_part" class="btn btn-success">Add Part</button></div>
+    <div class="col-md-3"><button type="submit" name="add_part" class="btn btn-success">Add New Part</button></div>
+  </form>
+
+  <h4 class="text-danger mt-4">Refurbished Parts</h4>
+  <div style="overflow-x:auto;">
+  <table class="table table-bordered">
+    <thead><tr><th>Part Name</th><th style="width:230px;">Quantity</th></tr></thead>
+    <tbody>
+    <?php while ($row = $resultRefurb->fetch_assoc()): ?>
+      <tr>
+        <td><?php echo htmlspecialchars($row['part_name']); ?></td>
+        <td>
+          <form method="post" action="viewinventorystatus.php" style="margin:0; display:flex; gap:6px; align-items:center;">
+            <input type="hidden" name="list" value="refurbished">
+            <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
+            <input type="number" name="quantity" value="<?php echo (int)$row['quantity']; ?>" class="form-control" min="0" style="max-width:120px;">
+            <button type="submit" name="update_qty" class="btn btn-primary">Save</button>
+          </form>
+        </td>
+      </tr>
+    <?php endwhile; ?>
+    </tbody>
+  </table>
+  </div>
+  <form method="post" action="viewinventorystatus.php" class="row g-2">
+    <input type="hidden" name="list" value="refurbished">
+    <div class="col-md-6"><input type="text" name="part_name" class="form-control" placeholder="Refurbished part name" required></div>
+    <div class="col-md-3"><input type="number" name="quantity" class="form-control" value="0" min="0"></div>
+    <div class="col-md-3"><button type="submit" name="add_part" class="btn btn-success">Add Refurbished Part</button></div>
   </form>
 </div>
 
