@@ -14,7 +14,8 @@ $like = '%' . $q . '%';
 
 // Registrations have a ticket number in `tiknumber`; closures store it in
 // `tickview`. A ticket is "open" if its number has not been closed yet.
-$sql = "SELECT tiknumber, bnkname, branchname, atmid, custnumber, complainno, calltype, warrantystatus
+$sql = "SELECT tiknumber, bnkname, branchname, atmid, custnumber, complainno, calltype, warrantystatus,
+               error, issues, partdemand, callregthr, callregtimings, approvalpending, bankendtext
         FROM digitechcrm
         WHERE tiknumber <> ''
           AND tiknumber NOT IN (

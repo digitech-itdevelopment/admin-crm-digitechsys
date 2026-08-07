@@ -1318,6 +1318,15 @@ $conn = getDbConnection();
         set('txtcomplaintno', t.complainno);
         set('typeofcall', t.calltype);
         set('warrantystatusoem', t.warrantystatus);
+        set('errorcode', t.error);
+        set('issuestxt', t.issues);
+        set('partdemand', t.partdemand);
+        set('callregthrough', t.callregthr);
+        set('txtDateTime1', t.callregtimings);
+        var ap = document.getElementById('approvalPendingSwitch');
+        if (ap) { ap.checked = (t.approvalpending === 'Yes'); if (typeof toggleApprovalText === 'function') { toggleApprovalText(); } }
+        set('bankendtext', t.bankendtext);
+        if (typeof calculateDowntime === 'function') { calculateDowntime(); }
         document.getElementById('ticketSuggestions').style.display = 'none';
     }
     document.addEventListener('click', function(e){
