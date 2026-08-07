@@ -894,6 +894,15 @@ $conn = getDbConnection();
 
 
                     <div class="row py-3">
+                        <div class="col-md-12">
+                            <label>Call timings:</label>
+                            <input type="datetime-local" name="txtDateTime1" id="txtDateTime1"
+                                class="form-control rounded rounded-5" onchange="calculateDowntime()">
+                        </div>
+                    </div>
+                    <!--row ends-->
+
+                    <div class="row py-3">
 
                         <div class="col-md-12">
 
@@ -924,20 +933,6 @@ $conn = getDbConnection();
 
 
 
-                    </div>
-                    <!--row ends-->
-
-
-
-
-
-
-                    <div class="row py-3">
-                        <div class="col-md-12">
-                            <label>Call timings:</label>
-                            <input type="datetime-local" name="txtDateTime1" id="txtDateTime1"
-                                class="form-control rounded rounded-5" onchange="calculateDowntime()">
-                        </div>
                     </div>
                     <!--row ends-->
 
@@ -1124,13 +1119,7 @@ $conn = getDbConnection();
 
                     <div class="row py-3">
 
-                        <div class="col-md-6">
-
-
-                            <label>Resolution Time:</label>
-                        </div>
-
-                        <div class="col-md-6">
+                        <div class="col-md-12">
 
 
                             <label>Time of Call Closed:</label>
