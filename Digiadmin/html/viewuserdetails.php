@@ -18,6 +18,14 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
+// Render a labelled row only when the value is non-empty (hide blank fields in the view).
+function fieldRow($label, $val) {
+    $val = trim((string)$val);
+    if ($val !== '') {
+        echo '<p><strong>' . htmlspecialchars($label) . ':</strong> ' . htmlspecialchars($val) . '</p>';
+    }
+}
+
 // Fetch unique bank names for dropdown
 $bankQuery = "SELECT DISTINCT bnkname FROM digitechcrm";
 $bankResult = $conn->query($bankQuery);
@@ -279,52 +287,51 @@ if (!$result) {
                             </div>
                           </div>
                           <div class="card-body">
-                    <p><strong>Ticket Status:</strong> <?php echo htmlspecialchars($rows['tktstatusdetails'] !== '' ? $rows['tktstatusdetails'] : ($rows['tiknumber'] !== '' ? 'Pending' : '')); ?></p>
-                    <p><strong>Complain Number:</strong> <?php echo htmlspecialchars($rows['complainno']); ?></p>
-                    <p><strong>Call Register Date & Time:</strong> <?php echo htmlspecialchars($rows['callregtimings']); ?></p>
-                    <p><strong>Branch Name:</strong> <?php echo htmlspecialchars($rows['branchname']); ?></p>
-                    <p><strong>Bank Name:</strong> <?php echo htmlspecialchars($rows['bnkname']); ?></p>
-                    <p><strong>ATM ID:</strong> <?php echo htmlspecialchars($rows['atmid']); ?></p>
-                    <p><strong>Custodian No:</strong> <?php echo htmlspecialchars($rows['custnumber']); ?></p>
-                    <p><strong>Type of Call:</strong> <?php echo htmlspecialchars($rows['calltype']); ?></p>
-                    <p><strong>Warranty status:</strong> <?php echo htmlspecialchars($rows['warrantystatus']); ?></p>
-                    <p><strong>Approval Pending (Bank End):</strong> <?php echo htmlspecialchars($rows['approvalpending']); ?></p>
-                    <?php if (!empty($rows['bankendtext'])): ?>
-                    <p><strong>Bank End details:</strong> <?php echo htmlspecialchars($rows['bankendtext']); ?></p>
-                    <?php endif; ?>
-                    <p><strong>Preventive Maintenance:</strong> <?php echo htmlspecialchars($rows['prevmaintain']); ?></p>
-                    <p><strong>Stationary Delivered:</strong> <?php echo htmlspecialchars($rows['stationarydelvrd']); ?></p>
-                    <p><strong>Error Code:</strong> <?php echo htmlspecialchars($rows['error']); ?></p>
-                    <p><strong>Issues:</strong> <?php echo htmlspecialchars($rows['issues']); ?></p>
-                    <p><strong>Stationary Required:</strong> <?php echo htmlspecialchars($rows['stationaryreq']); ?></p>
-                    <p><strong>Atm Status:</strong> <?php echo htmlspecialchars($rows['atmworking']); ?></p>
-                    <p><strong>Call Registered Through:</strong> <?php echo htmlspecialchars($rows['callregthr']); ?></p>
-                    <p><strong>Call Timings:</strong> <?php echo htmlspecialchars($rows['calltimings']); ?></p>
-                    <p><strong>Call Registered with OEM:</strong> <?php echo htmlspecialchars($rows['callregoememail']); ?></p>
-                    <p><strong>Call Registered with Digitech:</strong> <?php echo htmlspecialchars($rows['callregdsi']); ?></p>
-                    <p><strong>Date and Time:</strong> <?php echo htmlspecialchars($rows['datetimee']); ?></p>
-                    <p><strong>Resolved by:</strong> <?php echo htmlspecialchars($rows['resolby']); ?></p>
-                    <p><strong>Part Demand:</strong> <?php echo htmlspecialchars($rows['partdemand']); ?></p>
-                    <p><strong>Name of Part:</strong> <?php echo htmlspecialchars($rows['partnm']); ?></p>
-                    <p><strong>Name of OEM Engineer:</strong> <?php echo htmlspecialchars($rows['oemeng']); ?></p>
-                    <p><strong>Name of Digitech Engineer:</strong> <?php echo htmlspecialchars($rows['digieng']); ?></p>
-                    <p><strong>Time of Close:</strong> <?php echo htmlspecialchars($rows['timeofclos']); ?></p>
-
                     <?php
-                    $svr_documents = explode(',', $rows['svr']);
-                    if (!empty($svr_documents)) {
+                    fieldRow('Ticket Status', $rows['tktstatusdetails'] !== '' ? $rows['tktstatusdetails'] : ($rows['tiknumber'] !== '' ? 'Pending' : ''));
+                    fieldRow('Complain Number', $rows['complainno']);
+                    fieldRow('Call Register Date & Time', $rows['callregtimings']);
+                    fieldRow('Branch Name', $rows['branchname']);
+                    fieldRow('Bank Name', $rows['bnkname']);
+                    fieldRow('ATM ID', $rows['atmid']);
+                    fieldRow('Custodian No', $rows['custnumber']);
+                    fieldRow('Type of Call', $rows['calltype']);
+                    fieldRow('Warranty status', $rows['warrantystatus']);
+                    fieldRow('Approval Pending (Bank End)', $rows['approvalpending']);
+                    fieldRow('Bank End details', $rows['bankendtext']);
+                    fieldRow('Preventive Maintenance', $rows['prevmaintain']);
+                    fieldRow('Stationary Delivered', $rows['stationarydelvrd']);
+                    fieldRow('Error Code', $rows['error']);
+                    fieldRow('Issues', $rows['issues']);
+                    fieldRow('Stationary Required', $rows['stationaryreq']);
+                    fieldRow('Atm Status', $rows['atmworking']);
+                    fieldRow('Call Registered Through', $rows['callregthr']);
+                    fieldRow('Call Timings', $rows['calltimings']);
+                    fieldRow('Call Registered with OEM', $rows['callregoememail']);
+                    fieldRow('Call Registered with Digitech', $rows['callregdsi']);
+                    fieldRow('Date and Time', $rows['datetimee']);
+                    fieldRow('Resolved by', $rows['resolby']);
+                    fieldRow('Part Demand', $rows['partdemand']);
+                    fieldRow('Name of Part', $rows['partnm']);
+                    fieldRow('Name of OEM Engineer', $rows['oemeng']);
+                    fieldRow('Name of Digitech Engineer', $rows['digieng']);
+                    fieldRow('Time of Close', $rows['timeofclos']);
+
+                    if (trim((string)$rows['svr']) !== '') {
                         echo '<p><strong>SCR Documents:</strong></p>';
-                        foreach ($svr_documents as $document) {
+                        foreach (explode(',', $rows['svr']) as $document) {
+                            $document = trim($document);
+                            if ($document === '') { continue; }
                             echo '<div><a href="' . htmlspecialchars($document) . '" target="_blank">' . htmlspecialchars(basename($document)) . '</a></div>';
                         }
                     }
-                    ?>
 
-                    <p><strong>Downtime:</strong> <?php echo htmlspecialchars($rows['downntym']); ?></p>
-                    <p><strong>Excess Downtime:</strong> <?php echo htmlspecialchars($rows['calllogtym']); ?></p>
-                    <p><strong>Customer Information through:</strong> <?php echo htmlspecialchars($rows['email']); ?></p>
-                    <p><strong>Closure Date and Time:</strong> <?php echo htmlspecialchars($rows['warrantydatetym']); ?></p>
-                    <p><strong>Remarks if any:</strong> <?php echo htmlspecialchars($rows['remarksifany']); ?></p>
+                    fieldRow('Downtime', $rows['downntym']);
+                    fieldRow('Excess Downtime', $rows['calllogtym']);
+                    fieldRow('Customer Information through', $rows['email']);
+                    fieldRow('Closure Date and Time', $rows['warrantydatetym']);
+                    fieldRow('Remarks if any', $rows['remarksifany']);
+                    ?>
                           </div>
                         </div>
                       </div>
