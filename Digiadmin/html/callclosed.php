@@ -1,4 +1,3 @@
-
 <?php session_start();
 require_once 'config.php';
 $conn = getDbConnection();
@@ -1015,51 +1014,23 @@ $conn = getDbConnection();
 
                             <select ID="partname" name="partname" class="form-control rounded rounded-5">
                                 <option value="Not Applicable">Please Select</option>
-                                <option value="dispensershutter">Dispenser Shutter</option>
-                                <option value="journalprinter">Journal Printer</option>
-                                <option value="controllercard">Controller Card</option>
-                                <option value="motherboard">Mother Board</option>
-                                <option value="ccaboard">CCA Board</option>
-                                <option value="hookbelt">Hook Belt</option>
-                                <option value="fan">Fan</option>
-                                <option value="clamp">Clamp</option>
-                                <option value="belts">High Belts</option>
-                                <option value="cassette">Currency Casseltes</option>
-                                <option value="Stacker">Stacker</option>
-                                <option value="cmdcontrollercard">CMD Controller Card</option>
-                                <option value="feedsocket">Feed Socket</option>
-                                <option value="hdd">HDD</option>
-                                <option value="cardreader">Card Reader </option>
-                                <option value="safelock">Safe Lock </option>
-                                <option value="upsbatteries">UPS Batteries </option>
-                                <option value="upscontrollercard">UPS Controller Card </option>
-                                <option value="receiptprinter">Receipt Printer </option>
-                                <option value="epp">EPP </option>
-                                <option value="dispenser">Dispenser </option>
-                                <option value="Softkeys">Softkeys </option>
-                                <option value="roller">Roller </option>
-                                <option value="cpufan">CPU Fan </option>
-                                <option value="feedshafts">Feed Shafts </option>
-                                <option value="hooddoorlock">Hood Door Lock </option>
-                                <option value="doubleextractor">Double Extractor </option>
-                                <option value="ddu">DDU </option>
-                                <option value="divertcassette">Divert Cassette </option>
-                                <option value="shuttercable">Shutter Cable </option>
-                                <option value="k80printer">K80 Printer</option>
-                                <option value="printerhead">Printer Head</option>
-                                <option value="rejectstopelement">Reject Stop Element</option>
-                                <option value="shuttermotor">Shutter Motor</option>
-                                <option value="stackerunit4">Stacker Unit4</option>
-                                <option value="camslock">Cams Lock</option>
-                                <option value="notepickingroller">Note Picking Roller</option>
-                                <option value="smallbelts">Small Belts</option>
-                                <option value="controllercard4x">4x Controller Card</option>
-                                <option value="atmscreen">ATM Screen</option>
-                                <option value="fascia">Fascia</option>
-                                <option value="horizontaltransport">Horizontal Transport</option>
-                                <option value="housingunit">Housing Unit</option>
-                                <option value="shutter">Shutter</option>
-                                <option value="smps">Power Supply (SMPS)</option>
+                                <?php
+                                // Dynamic part list: pulled live from the `inventory` table so any
+                                // part added on the Inventory Status page is immediately selectable
+                                // here, and the auto-deduction in userdetails.php stays in sync.
+                                try {
+                                    $partsForClose = $conn->query("SELECT part_key, part_name FROM inventory ORDER BY part_name ASC");
+                                    if ($partsForClose) {
+                                        while ($pRow = $partsForClose->fetch_assoc()) {
+                                            $pk = htmlspecialchars($pRow['part_key']);
+                                            $pn = htmlspecialchars($pRow['part_name']);
+                                            echo "<option value=\"$pk\">$pn</option>";
+                                        }
+                                    }
+                                } catch (\Throwable $e) {
+                                    error_log("Digitech CRM: could not load inventory parts for Call Close: " . $e->getMessage());
+                                }
+                                ?>
                             </select>
                         </div>
 

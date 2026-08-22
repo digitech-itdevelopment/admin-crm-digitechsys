@@ -1,14 +1,14 @@
 <?php
 
-// Copy this file to config.php and fill in real credentials.
-// config.php is git-ignored so secrets are never committed.
 
 define('DB_SERVER', 'localhost');
-define('DB_USERNAME', 'YOUR_DB_USERNAME');
-define('DB_PASSWORD', 'YOUR_DB_PASSWORD');
-define('DB_NAME', 'YOUR_DB_NAME');
+define('DB_USERNAME', 'nitin_login');  
+define('DB_PASSWORD', 'Sharma#1984');      
+define('DB_NAME', 'digitechdata');
 
 function getDbConnection() {
+    
+   
 
     $connection = new mysqli(DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_NAME);
 
