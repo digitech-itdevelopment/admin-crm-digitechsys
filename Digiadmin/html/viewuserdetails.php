@@ -283,6 +283,12 @@ if (!$result) {
                                          onclick="return confirm('Delete this <?php echo $isClose ? 'closure' : 'registration'; ?> record for ticket <?php echo htmlspecialchars($isClose ? $rows['tickview'] : $rows['tiknumber']); ?>?');">
                                 </form>
                               </div>
+                              <?php else: ?>
+                              <div class="col-md-3">
+                                <a href="edit_ticket.php?id=<?php echo (int)$rows['id']; ?>"
+                                   class="form-control font-16 text-center"
+                                   style="color:#fff; background:#5a4fcf; border-radius:4px; text-decoration:none; display:inline-block;">Edit</a>
+                              </div>
                               <?php endif; ?>
                             </div>
                           </div>
