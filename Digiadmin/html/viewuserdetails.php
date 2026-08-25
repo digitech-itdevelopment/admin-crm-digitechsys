@@ -287,7 +287,7 @@ if (!$result) {
                               <div class="col-md-3">
                                 <a href="edit_ticket.php?id=<?php echo (int)$rows['id']; ?>"
                                    class="form-control font-16 text-center"
-                                   style="color:#fff; background:#5a4fcf; border-radius:4px; text-decoration:none; display:inline-block;">Edit</a>
+                                   style="color:black; text-decoration:none; display:inline-block;">Edit</a>
                               </div>
                               <?php endif; ?>
                             </div>
