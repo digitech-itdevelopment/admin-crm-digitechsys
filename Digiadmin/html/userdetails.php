@@ -240,13 +240,16 @@ $stmt->bind_param("ssssssssssssssssssssssssssssssssssssss",
 
 if ($stmt->execute()) {
 
-    // Decrement the chosen stock list (New/Refurbished/None) for the selected part.
+    // Decrement the chosen stock list (New/Refurbished/None) for the selected part,
+    // by the quantity the engineer actually used (defaults to 1 if not provided).
     $partstock = isset($_POST['partstock']) ? $_POST['partstock'] : 'New';
+    $partqty = isset($_POST['partqty']) ? (int)$_POST['partqty'] : 1;
+    if ($partqty < 1) { $partqty = 1; }
     if ($partnm !== '' && $partnm !== 'Not Applicable' && $partstock !== 'None') {
         $stockTable = ($partstock === 'Refurbished') ? 'inventory_refurbished' : 'inventory';
         try {
-            $up = $conn->prepare("UPDATE $stockTable SET quantity = quantity - 1 WHERE part_key = ? AND quantity > 0");
-            $up->bind_param("s", $partnm);
+            $up = $conn->prepare("UPDATE $stockTable SET quantity = GREATEST(quantity - ?, 0) WHERE part_key = ?");
+            $up->bind_param("is", $partqty, $partnm);
             $up->execute();
         } catch (\Throwable $stockError) {
             error_log("Digitech CRM: stock update skipped/failed: " . $stockError->getMessage());

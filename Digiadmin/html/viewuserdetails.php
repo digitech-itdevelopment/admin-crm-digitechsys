@@ -297,6 +297,7 @@ if (!$result) {
                     fieldRow('Ticket Status', $rows['tktstatusdetails'] !== '' ? $rows['tktstatusdetails'] : ($rows['tiknumber'] !== '' ? 'Pending' : ''));
                     fieldRow('Complain Number', $rows['complainno']);
                     fieldRow('Call Register Date & Time', $rows['callregtimings']);
+                    fieldRow('Call Registered Through', $rows['callregthr']);
                     fieldRow('Branch Name', $rows['branchname']);
                     fieldRow('Bank Name', $rows['bnkname']);
                     fieldRow('ATM ID', $rows['atmid']);
@@ -311,7 +312,6 @@ if (!$result) {
                     fieldRow('Issues', $rows['issues']);
                     fieldRow('Stationary Required', $rows['stationaryreq']);
                     fieldRow('Atm Status', $rows['atmworking']);
-                    fieldRow('Call Registered Through', $rows['callregthr']);
                     fieldRow('Call Timings', $rows['calltimings']);
                     fieldRow('Call Registered with OEM', $rows['callregoememail']);
                     fieldRow('Call Registered with Digitech', $rows['callregdsi']);

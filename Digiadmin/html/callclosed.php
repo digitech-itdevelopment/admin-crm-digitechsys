@@ -1015,11 +1015,18 @@ $conn = getDbConnection();
                             <select ID="partname" name="partname" class="form-control rounded rounded-5">
                                 <option value="Not Applicable">Please Select</option>
                                 <?php
-                                // Dynamic part list: pulled live from the `inventory` table so any
-                                // part added on the Inventory Status page is immediately selectable
-                                // here, and the auto-deduction in userdetails.php stays in sync.
+                                // Dynamic part list: combined live from BOTH `inventory` (New) and
+                                // `inventory_refurbished` tables, deduped by part_key/part_name, so
+                                // any part from either stock list is selectable here. Which table
+                                // actually gets decremented is decided by the "Part Stock" dropdown
+                                // below (New/Refurbished/None) — see userdetails.php.
                                 try {
-                                    $partsForClose = $conn->query("SELECT part_key, part_name FROM inventory ORDER BY part_name ASC");
+                                    $partsForClose = $conn->query(
+                                        "SELECT part_key, part_name FROM inventory
+                                         UNION
+                                         SELECT part_key, part_name FROM inventory_refurbished
+                                         ORDER BY part_name ASC"
+                                    );
                                     if ($partsForClose) {
                                         while ($pRow = $partsForClose->fetch_assoc()) {
                                             $pk = htmlspecialchars($pRow['part_key']);
@@ -1033,6 +1040,33 @@ $conn = getDbConnection();
                                 ?>
                             </select>
                         </div>
+
+                        <div class="col-md-2">
+                            <label>Quantity Used</label>
+                            <div class="input-group">
+                                <button type="button" class="btn btn-outline-secondary" id="partqty_minus" tabindex="-1">-</button>
+                                <input type="number" id="partqty" name="partqty" class="form-control text-center rounded"
+                                       value="1" min="1" step="1">
+                                <button type="button" class="btn btn-outline-secondary" id="partqty_plus" tabindex="-1">+</button>
+                            </div>
+                        </div>
+
+                        <script>
+                        document.addEventListener('DOMContentLoaded', function () {
+                            var qtyInput = document.getElementById('partqty');
+                            document.getElementById('partqty_plus').addEventListener('click', function () {
+                                var v = parseInt(qtyInput.value, 10);
+                                if (isNaN(v) || v < 1) { v = 1; }
+                                qtyInput.value = v + 1;
+                            });
+                            document.getElementById('partqty_minus').addEventListener('click', function () {
+                                var v = parseInt(qtyInput.value, 10);
+                                if (isNaN(v) || v <= 1) { v = 1; }
+                                else { v = v - 1; }
+                                qtyInput.value = v;
+                            });
+                        });
+                        </script>
 
 
                     </div>
