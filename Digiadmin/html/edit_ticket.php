@@ -53,6 +53,7 @@ function esc($v) { return htmlspecialchars((string)$v); }
     <link rel="icon" type="image/png" sizes="16x16" href="../assets/images/favicon.png" />
     <link href="../assets/libs/flot/css/float-chart.css" rel="stylesheet" />
     <link href="../dist/css/style.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
         label { font-weight: 700; display:block; margin-top: 14px; }
         .form-control { border-radius: 6px; }

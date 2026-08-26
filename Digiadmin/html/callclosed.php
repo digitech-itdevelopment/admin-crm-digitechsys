@@ -994,7 +994,7 @@ $conn = getDbConnection();
 
                         </div>
 
-                        <div class="col-md-3">
+                        <div class="col-md-2">
 
                             <input ID="demandwithoem" type="checkbox" name="demandwithoem">
                             <label>Demand with DSI</label>
@@ -1003,14 +1003,14 @@ $conn = getDbConnection();
 
                         </div>
 
-                        <div class="col-md-3">
+                        <div class="col-md-2">
 
 
                             <label>Name of Part</label>
                         </div>
 
 
-                        <div class="col-md-4">
+                        <div class="col-md-3">
 
                             <select ID="partname" name="partname" class="form-control rounded rounded-5">
                                 <option value="Not Applicable">Please Select</option>
@@ -1041,8 +1041,8 @@ $conn = getDbConnection();
                             </select>
                         </div>
 
-                        <div class="col-md-2">
-                            <label>Quantity Used</label>
+                        <div class="col-md-3">
+                            <label>Qty</label>
                             <div class="input-group">
                                 <button type="button" class="btn btn-outline-secondary" id="partqty_minus" tabindex="-1">-</button>
                                 <input type="number" id="partqty" name="partqty" class="form-control text-center rounded"
