@@ -5,9 +5,18 @@ require_once 'config.php';
 $conn = getDbConnection();
 if ($conn->connect_error) { die("Connection failed: " . $conn->connect_error); }
 
-$loggedInUser = trim((string)($_SESSION['userdata'] ?? ''));
-$isRegularAdmin = in_array(strtolower($loggedInUser), ['suhas@2026', 'pritam@2026'], true) || (($_SESSION['role'] ?? '') === 'admin');
-$isSuperAdmin = !$isRegularAdmin;
+if (!isset($_SESSION['role'])) {
+    try {
+        $uStmt = $conn->prepare("SELECT role FROM adminlogin WHERE username = ? LIMIT 1");
+        $uStmt->bind_param("s", $_SESSION['userdata']);
+        $uStmt->execute();
+        $uRes = $uStmt->get_result()->fetch_assoc();
+        $_SESSION['role'] = $uRes['role'] ?? 'admin';
+    } catch (\Throwable $e) {
+        $_SESSION['role'] = 'admin';
+    }
+}
+$isSuperAdmin = (($_SESSION['role'] ?? '') === 'superadmin');
 
 // Map a posted list name and location to its table (whitelist — never interpolate raw input).
 function inv_location($loc) {
