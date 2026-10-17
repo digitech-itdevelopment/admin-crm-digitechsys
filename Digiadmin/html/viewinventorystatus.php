@@ -5,6 +5,10 @@ require_once 'config.php';
 $conn = getDbConnection();
 if ($conn->connect_error) { die("Connection failed: " . $conn->connect_error); }
 
+$loggedInUser = trim((string)($_SESSION['userdata'] ?? ''));
+$isRegularAdmin = in_array(strtolower($loggedInUser), ['suhas@2026', 'pritam@2026'], true) || (($_SESSION['role'] ?? '') === 'admin');
+$isSuperAdmin = !$isRegularAdmin;
+
 // Map a posted list name and location to its table (whitelist — never interpolate raw input).
 function inv_location($loc) {
     if ($loc === 'jammu') return 'jammu';
@@ -99,6 +103,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_part'])) {
 }
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_part'])) {
     $loc = inv_location($_POST['location'] ?? '') ?: 'jammu';
+    if (!$isSuperAdmin) {
+        $_SESSION['inv_notice'] = "Only Superadmin can delete parts.";
+        header("Location: viewinventorystatus.php?location=" . $loc);
+        exit();
+    }
     $id = (int)$_POST['id'];
     $t = inv_table($_POST['list'] ?? 'new', $loc);
     try {
@@ -559,7 +568,7 @@ if ($location !== '') {
     <h4 class="text-danger">New Parts (<?php echo ucfirst(htmlspecialchars($location)); ?>)</h4>
     <div style="overflow-x:auto;">
     <table class="table table-bordered">
-      <thead><tr><th>Part Name</th><th style="width:120px;">Quantity</th><th>Note</th><th style="width:230px;"></th></tr></thead>
+      <thead><tr><th>Part Name</th><th style="width:120px;">Quantity</th><th>Note</th><th style="width:<?php echo $isSuperAdmin ? '230px' : '160px'; ?>;"></th></tr></thead>
       <tbody>
       <?php while ($row = $resultNew->fetch_assoc()): $fid = 'fn' . (int)$row['id']; ?>
         <tr>
@@ -576,8 +585,10 @@ if ($location !== '') {
           <td><input form="<?php echo $fid; ?>" type="text" name="note" value="<?php echo htmlspecialchars($row['note']); ?>" class="form-control" placeholder="Note"></td>
           <td style="white-space:nowrap;">
             <button type="button" class="btn btn-secondary me-1" onclick="togglePartEdit(this)">Edit</button>
-            <button form="<?php echo $fid; ?>" type="submit" name="update_qty" class="btn btn-primary me-1">Save</button>
-            <button form="<?php echo $fid; ?>" type="submit" name="delete_part" class="btn btn-danger" formnovalidate onclick="return confirm('Are you sure you want to delete this part?');">Delete</button>
+            <button form="<?php echo $fid; ?>" type="submit" name="update_qty" class="btn btn-primary<?php echo $isSuperAdmin ? ' me-1' : ''; ?>">Save</button>
+            <?php if ($isSuperAdmin): ?>
+              <button form="<?php echo $fid; ?>" type="submit" name="delete_part" class="btn btn-danger" formnovalidate onclick="return confirm('Are you sure you want to delete this part?');">Delete</button>
+            <?php endif; ?>
           </td>
         </tr>
       <?php endwhile; ?>
@@ -596,7 +607,7 @@ if ($location !== '') {
     <h4 class="text-danger mt-4">Refurbished Parts (<?php echo ucfirst(htmlspecialchars($location)); ?>)</h4>
     <div style="overflow-x:auto;">
     <table class="table table-bordered">
-      <thead><tr><th>Part Name</th><th style="width:120px;">Quantity</th><th>Note</th><th style="width:230px;"></th></tr></thead>
+      <thead><tr><th>Part Name</th><th style="width:120px;">Quantity</th><th>Note</th><th style="width:<?php echo $isSuperAdmin ? '230px' : '160px'; ?>;"></th></tr></thead>
       <tbody>
       <?php while ($row = $resultRefurb->fetch_assoc()): $fid = 'fr' . (int)$row['id']; ?>
         <tr>
@@ -613,8 +624,10 @@ if ($location !== '') {
           <td><input form="<?php echo $fid; ?>" type="text" name="note" value="<?php echo htmlspecialchars($row['note']); ?>" class="form-control" placeholder="Note"></td>
           <td style="white-space:nowrap;">
             <button type="button" class="btn btn-secondary me-1" onclick="togglePartEdit(this)">Edit</button>
-            <button form="<?php echo $fid; ?>" type="submit" name="update_qty" class="btn btn-primary me-1">Save</button>
-            <button form="<?php echo $fid; ?>" type="submit" name="delete_part" class="btn btn-danger" formnovalidate onclick="return confirm('Are you sure you want to delete this part?');">Delete</button>
+            <button form="<?php echo $fid; ?>" type="submit" name="update_qty" class="btn btn-primary<?php echo $isSuperAdmin ? ' me-1' : ''; ?>">Save</button>
+            <?php if ($isSuperAdmin): ?>
+              <button form="<?php echo $fid; ?>" type="submit" name="delete_part" class="btn btn-danger" formnovalidate onclick="return confirm('Are you sure you want to delete this part?');">Delete</button>
+            <?php endif; ?>
           </td>
         </tr>
       <?php endwhile; ?>
