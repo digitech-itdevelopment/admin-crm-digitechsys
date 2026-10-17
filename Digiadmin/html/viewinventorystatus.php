@@ -5,18 +5,89 @@ require_once 'config.php';
 $conn = getDbConnection();
 if ($conn->connect_error) { die("Connection failed: " . $conn->connect_error); }
 
-// Map a posted list name to its table (whitelist — never interpolate raw input).
-function inv_table($v) { return ($v === 'refurbished') ? 'inventory_refurbished' : 'inventory'; }
+// Map a posted list name and location to its table (whitelist — never interpolate raw input).
+function inv_location($loc) {
+    if ($loc === 'jammu') return 'jammu';
+    if ($loc === 'dharamshala') return 'dharamshala';
+    return '';
+}
+function inv_table($v, $loc = 'jammu') {
+    if ($loc === 'dharamshala') {
+        return ($v === 'refurbished') ? 'inventory_refurbished_dharamshala' : 'inventory_dharamshala';
+    }
+    return ($v === 'refurbished') ? 'inventory_refurbished' : 'inventory';
+}
+function ensure_dharamshala_tables($conn) {
+    $conn->query("CREATE TABLE IF NOT EXISTS inventory_dharamshala (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        part_key VARCHAR(64) NOT NULL COLLATE utf8mb4_general_ci,
+        part_name VARCHAR(150) NOT NULL,
+        quantity INT NOT NULL DEFAULT 0,
+        note VARCHAR(255) NOT NULL DEFAULT '',
+        UNIQUE KEY uq_part_key (part_key)
+    )");
+    $conn->query("CREATE TABLE IF NOT EXISTS inventory_refurbished_dharamshala (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        part_key VARCHAR(64) NOT NULL COLLATE utf8mb4_general_ci,
+        part_name VARCHAR(150) NOT NULL,
+        quantity INT NOT NULL DEFAULT 0,
+        note VARCHAR(255) NOT NULL DEFAULT '',
+        UNIQUE KEY uq_part_key (part_key)
+    )");
+    $r1 = $conn->query("SELECT COUNT(*) AS cnt FROM inventory_dharamshala");
+    if ($r1 && (int)$r1->fetch_assoc()['cnt'] === 0) {
+        $conn->query("INSERT IGNORE INTO inventory_dharamshala (part_key, part_name, quantity, note) SELECT part_key, part_name, 0, '' FROM inventory");
+    }
+    $r2 = $conn->query("SELECT COUNT(*) AS cnt FROM inventory_refurbished_dharamshala");
+    if ($r2 && (int)$r2->fetch_assoc()['cnt'] === 0) {
+        $conn->query("INSERT IGNORE INTO inventory_refurbished_dharamshala (part_key, part_name, quantity, note) SELECT part_key, part_name, 0, '' FROM inventory_refurbished");
+    }
+}
+
+$location = inv_location($_REQUEST['location'] ?? '');
+if ($location === 'dharamshala') {
+    try { ensure_dharamshala_tables($conn); }
+    catch (\Throwable $e) { error_log("dharamshala table init failed: " . $e->getMessage()); }
+}
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_qty'])) {
-    $id = (int)$_POST['id']; $qty = (int)$_POST['quantity']; $note = trim($_POST['note'] ?? ''); $t = inv_table($_POST['list'] ?? 'new');
-    try { $stmt = $conn->prepare("UPDATE $t SET quantity=?, note=? WHERE id=?"); $stmt->bind_param("isi",$qty,$note,$id); $stmt->execute(); }
-    catch (\Throwable $e) { error_log("inventory update failed: ".$e->getMessage()); }
-    header("Location: viewinventorystatus.php"); exit();
+    $loc = inv_location($_POST['location'] ?? '') ?: 'jammu';
+    $id = (int)$_POST['id'];
+    $qty = (int)$_POST['quantity'];
+    $note = trim($_POST['note'] ?? '');
+    $name = trim($_POST['part_name'] ?? '');
+    $key = strtolower(preg_replace('/[^A-Za-z0-9]/', '', $name));
+    $t = inv_table($_POST['list'] ?? 'new', $loc);
+    try {
+        if ($name !== '' && $key !== '') {
+            $chk = $conn->prepare("SELECT id FROM $t WHERE part_key=? AND id<>? LIMIT 1");
+            $chk->bind_param("si", $key, $id);
+            $chk->execute();
+            if ($chk->get_result()->num_rows > 0) {
+                $_SESSION['inv_notice'] = "A part with a similar name already exists.";
+                $stmt = $conn->prepare("UPDATE $t SET quantity=?, note=? WHERE id=?");
+                $stmt->bind_param("isi", $qty, $note, $id);
+                $stmt->execute();
+            } else {
+                $stmt = $conn->prepare("UPDATE $t SET part_key=?, part_name=?, quantity=?, note=? WHERE id=?");
+                $stmt->bind_param("ssisi", $key, $name, $qty, $note, $id);
+                $stmt->execute();
+            }
+        } else {
+            $stmt = $conn->prepare("UPDATE $t SET quantity=?, note=? WHERE id=?");
+            $stmt->bind_param("isi", $qty, $note, $id);
+            $stmt->execute();
+        }
+    } catch (\Throwable $e) {
+        error_log("inventory update failed: " . $e->getMessage());
+    }
+    header("Location: viewinventorystatus.php?location=" . $loc);
+    exit();
 }
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_part'])) {
+    $loc = inv_location($_POST['location'] ?? '') ?: 'jammu';
     $name = trim($_POST['part_name'] ?? ''); $key = strtolower(preg_replace('/[^A-Za-z0-9]/','',$name));
-    $qty = (int)($_POST['quantity'] ?? 0); $note = trim($_POST['note'] ?? ''); $t = inv_table($_POST['list'] ?? 'new');
+    $qty = (int)($_POST['quantity'] ?? 0); $note = trim($_POST['note'] ?? ''); $t = inv_table($_POST['list'] ?? 'new', $loc);
     if ($name !== '' && $key !== '') {
         try {
             $stmt = $conn->prepare("INSERT IGNORE INTO $t (part_key, part_name, quantity, note) VALUES (?,?,?,?)");
@@ -24,14 +95,35 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_part'])) {
             $_SESSION['inv_notice'] = ($stmt->affected_rows === 0) ? "A part with a similar name already exists." : "Part added.";
         } catch (\Throwable $e) { error_log("inventory add failed: ".$e->getMessage()); }
     }
-    header("Location: viewinventorystatus.php"); exit();
+    header("Location: viewinventorystatus.php?location=" . $loc); exit();
+}
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_part'])) {
+    $loc = inv_location($_POST['location'] ?? '') ?: 'jammu';
+    $id = (int)$_POST['id'];
+    $t = inv_table($_POST['list'] ?? 'new', $loc);
+    try {
+        $stmt = $conn->prepare("DELETE FROM $t WHERE id=?");
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $_SESSION['inv_notice'] = "Part deleted.";
+    } catch (\Throwable $e) {
+        error_log("inventory delete failed: " . $e->getMessage());
+    }
+    header("Location: viewinventorystatus.php?location=" . $loc);
+    exit();
 }
 $notice = $_SESSION['inv_notice'] ?? ''; unset($_SESSION['inv_notice']);
-try {
-    $resultNew = $conn->query("SELECT id, part_key, part_name, quantity, note FROM inventory ORDER BY part_name ASC");
-    $resultRefurb = $conn->query("SELECT id, part_key, part_name, quantity, note FROM inventory_refurbished ORDER BY part_name ASC");
-} catch (\Throwable $e) { die("Inventory table unavailable. Run the inventory migration first."); }
-if (!$resultNew || !$resultRefurb) { die("Query failed: " . $conn->error); }
+$resultNew = null;
+$resultRefurb = null;
+if ($location !== '') {
+    try {
+        $tNew = inv_table('new', $location);
+        $tRefurb = inv_table('refurbished', $location);
+        $resultNew = $conn->query("SELECT id, part_key, part_name, quantity, note FROM $tNew ORDER BY part_name ASC");
+        $resultRefurb = $conn->query("SELECT id, part_key, part_name, quantity, note FROM $tRefurb ORDER BY part_name ASC");
+    } catch (\Throwable $e) { die("Inventory table unavailable. Run the inventory migration first."); }
+    if (!$resultNew || !$resultRefurb) { die("Query failed: " . $conn->error); }
+}
 ?>
 
 
@@ -415,7 +507,7 @@ if (!$resultNew || !$resultRefurb) { die("Query failed: " . $conn->error); }
         <div class="row">
             <div class="text-md-center text-danger col-md-12">
             <img src="../images/stock.png" width="90" height="60" />
-            <h3>Digitech Online Stock Inventory Record</h3>
+            <h3>Digitech Online Stock Inventory Record<?php if ($location !== ''): ?> &mdash; <?php echo ucfirst(htmlspecialchars($location)); ?><?php endif; ?></h3>
             </div>
         </div>
 
@@ -424,65 +516,139 @@ if (!$resultNew || !$resultRefurb) { die("Query failed: " . $conn->error); }
         <div class="col-md-10">
 
 <div class="container" style="margin-top:20px;">
-  <?php if (!empty($notice)): ?><div class="alert alert-info"><?php echo htmlspecialchars($notice); ?></div><?php endif; ?>
+  <?php if ($location === ''): ?>
+    <div class="text-center mb-4">
+      <h4>Select Inventory Location</h4>
+      <p class="text-muted">Choose a location to view and manage New Parts and Refurbished Parts.</p>
+    </div>
+    <div class="row justify-content-center g-4 my-3">
+      <div class="col-md-5">
+        <a href="viewinventorystatus.php?location=jammu" style="text-decoration:none;">
+          <div class="card card-hover shadow-sm">
+            <div class="box bg-success text-center p-4" style="border-radius:8px;">
+              <h1 class="font-light text-white"><i class="mdi mdi-map-marker"></i></h1>
+              <h3 class="text-white mb-1">Jammu</h3>
+              <p class="text-white-50 mb-0">New Spares &amp; Refurbished Parts</p>
+            </div>
+          </div>
+        </a>
+      </div>
+      <div class="col-md-5">
+        <a href="viewinventorystatus.php?location=dharamshala" style="text-decoration:none;">
+          <div class="card card-hover shadow-sm">
+            <div class="box bg-info text-center p-4" style="border-radius:8px;">
+              <h1 class="font-light text-white"><i class="mdi mdi-map-marker"></i></h1>
+              <h3 class="text-white mb-1">Dharamshala</h3>
+              <p class="text-white-50 mb-0">New Spares &amp; Refurbished Parts</p>
+            </div>
+          </div>
+        </a>
+      </div>
+    </div>
+  <?php else: ?>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <a href="viewinventorystatus.php" class="btn btn-outline-secondary btn-sm">&larr; Change Location</a>
+      <div>
+        <a href="viewinventorystatus.php?location=jammu" class="btn btn-sm <?php echo ($location === 'jammu') ? 'btn-success' : 'btn-outline-success'; ?> me-1">Jammu</a>
+        <a href="viewinventorystatus.php?location=dharamshala" class="btn btn-sm <?php echo ($location === 'dharamshala') ? 'btn-info text-white' : 'btn-outline-info'; ?>">Dharamshala</a>
+      </div>
+    </div>
 
-  <h4 class="text-danger">New Parts</h4>
-  <div style="overflow-x:auto;">
-  <table class="table table-bordered">
-    <thead><tr><th>Part Name</th><th style="width:120px;">Quantity</th><th>Note</th><th style="width:90px;"></th></tr></thead>
-    <tbody>
-    <?php while ($row = $resultNew->fetch_assoc()): $fid = 'fn' . (int)$row['id']; ?>
-      <tr>
-        <td><?php echo htmlspecialchars($row['part_name']); ?>
-          <form id="<?php echo $fid; ?>" method="post" action="viewinventorystatus.php" style="margin:0;">
-            <input type="hidden" name="list" value="new">
-            <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
-          </form>
-        </td>
-        <td><input form="<?php echo $fid; ?>" type="number" name="quantity" value="<?php echo (int)$row['quantity']; ?>" class="form-control" min="0"></td>
-        <td><input form="<?php echo $fid; ?>" type="text" name="note" value="<?php echo htmlspecialchars($row['note']); ?>" class="form-control" placeholder="Note"></td>
-        <td><button form="<?php echo $fid; ?>" type="submit" name="update_qty" class="btn btn-primary">Save</button></td>
-      </tr>
-    <?php endwhile; ?>
-    </tbody>
-  </table>
-  </div>
-  <form method="post" action="viewinventorystatus.php" class="row g-2 mb-5">
-    <input type="hidden" name="list" value="new">
-    <div class="col-md-4"><input type="text" name="part_name" class="form-control" placeholder="New part name" required></div>
-    <div class="col-md-2"><input type="number" name="quantity" class="form-control" value="0" min="0"></div>
-    <div class="col-md-4"><input type="text" name="note" class="form-control" placeholder="Note (optional)"></div>
-    <div class="col-md-2"><button type="submit" name="add_part" class="btn btn-success">Add</button></div>
-  </form>
+    <?php if (!empty($notice)): ?><div class="alert alert-info"><?php echo htmlspecialchars($notice); ?></div><?php endif; ?>
 
-  <h4 class="text-danger mt-4">Refurbished Parts</h4>
-  <div style="overflow-x:auto;">
-  <table class="table table-bordered">
-    <thead><tr><th>Part Name</th><th style="width:120px;">Quantity</th><th>Note</th><th style="width:90px;"></th></tr></thead>
-    <tbody>
-    <?php while ($row = $resultRefurb->fetch_assoc()): $fid = 'fr' . (int)$row['id']; ?>
-      <tr>
-        <td><?php echo htmlspecialchars($row['part_name']); ?>
-          <form id="<?php echo $fid; ?>" method="post" action="viewinventorystatus.php" style="margin:0;">
-            <input type="hidden" name="list" value="refurbished">
-            <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
-          </form>
-        </td>
-        <td><input form="<?php echo $fid; ?>" type="number" name="quantity" value="<?php echo (int)$row['quantity']; ?>" class="form-control" min="0"></td>
-        <td><input form="<?php echo $fid; ?>" type="text" name="note" value="<?php echo htmlspecialchars($row['note']); ?>" class="form-control" placeholder="Note"></td>
-        <td><button form="<?php echo $fid; ?>" type="submit" name="update_qty" class="btn btn-primary">Save</button></td>
-      </tr>
-    <?php endwhile; ?>
-    </tbody>
-  </table>
-  </div>
-  <form method="post" action="viewinventorystatus.php" class="row g-2">
-    <input type="hidden" name="list" value="refurbished">
-    <div class="col-md-4"><input type="text" name="part_name" class="form-control" placeholder="Refurbished part name" required></div>
-    <div class="col-md-2"><input type="number" name="quantity" class="form-control" value="0" min="0"></div>
-    <div class="col-md-4"><input type="text" name="note" class="form-control" placeholder="Note (optional)"></div>
-    <div class="col-md-2"><button type="submit" name="add_part" class="btn btn-success">Add</button></div>
-  </form>
+    <h4 class="text-danger">New Parts (<?php echo ucfirst(htmlspecialchars($location)); ?>)</h4>
+    <div style="overflow-x:auto;">
+    <table class="table table-bordered">
+      <thead><tr><th>Part Name</th><th style="width:120px;">Quantity</th><th>Note</th><th style="width:230px;"></th></tr></thead>
+      <tbody>
+      <?php while ($row = $resultNew->fetch_assoc()): $fid = 'fn' . (int)$row['id']; ?>
+        <tr>
+          <td>
+            <span class="part-name-label"><?php echo htmlspecialchars($row['part_name']); ?></span>
+            <input form="<?php echo $fid; ?>" type="text" name="part_name" value="<?php echo htmlspecialchars($row['part_name']); ?>" class="form-control part-name-input" style="display:none;" required>
+            <form id="<?php echo $fid; ?>" method="post" action="viewinventorystatus.php?location=<?php echo htmlspecialchars($location); ?>" style="margin:0;">
+              <input type="hidden" name="location" value="<?php echo htmlspecialchars($location); ?>">
+              <input type="hidden" name="list" value="new">
+              <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
+            </form>
+          </td>
+          <td><input form="<?php echo $fid; ?>" type="number" name="quantity" value="<?php echo (int)$row['quantity']; ?>" class="form-control" min="0"></td>
+          <td><input form="<?php echo $fid; ?>" type="text" name="note" value="<?php echo htmlspecialchars($row['note']); ?>" class="form-control" placeholder="Note"></td>
+          <td style="white-space:nowrap;">
+            <button type="button" class="btn btn-secondary me-1" onclick="togglePartEdit(this)">Edit</button>
+            <button form="<?php echo $fid; ?>" type="submit" name="update_qty" class="btn btn-primary me-1">Save</button>
+            <button form="<?php echo $fid; ?>" type="submit" name="delete_part" class="btn btn-danger" formnovalidate onclick="return confirm('Are you sure you want to delete this part?');">Delete</button>
+          </td>
+        </tr>
+      <?php endwhile; ?>
+      </tbody>
+    </table>
+    </div>
+    <form method="post" action="viewinventorystatus.php?location=<?php echo htmlspecialchars($location); ?>" class="row g-2 mb-5">
+      <input type="hidden" name="location" value="<?php echo htmlspecialchars($location); ?>">
+      <input type="hidden" name="list" value="new">
+      <div class="col-md-4"><input type="text" name="part_name" class="form-control" placeholder="New part name" required></div>
+      <div class="col-md-2"><input type="number" name="quantity" class="form-control" value="0" min="0"></div>
+      <div class="col-md-4"><input type="text" name="note" class="form-control" placeholder="Note (optional)"></div>
+      <div class="col-md-2"><button type="submit" name="add_part" class="btn btn-success">Add</button></div>
+    </form>
+
+    <h4 class="text-danger mt-4">Refurbished Parts (<?php echo ucfirst(htmlspecialchars($location)); ?>)</h4>
+    <div style="overflow-x:auto;">
+    <table class="table table-bordered">
+      <thead><tr><th>Part Name</th><th style="width:120px;">Quantity</th><th>Note</th><th style="width:230px;"></th></tr></thead>
+      <tbody>
+      <?php while ($row = $resultRefurb->fetch_assoc()): $fid = 'fr' . (int)$row['id']; ?>
+        <tr>
+          <td>
+            <span class="part-name-label"><?php echo htmlspecialchars($row['part_name']); ?></span>
+            <input form="<?php echo $fid; ?>" type="text" name="part_name" value="<?php echo htmlspecialchars($row['part_name']); ?>" class="form-control part-name-input" style="display:none;" required>
+            <form id="<?php echo $fid; ?>" method="post" action="viewinventorystatus.php?location=<?php echo htmlspecialchars($location); ?>" style="margin:0;">
+              <input type="hidden" name="location" value="<?php echo htmlspecialchars($location); ?>">
+              <input type="hidden" name="list" value="refurbished">
+              <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
+            </form>
+          </td>
+          <td><input form="<?php echo $fid; ?>" type="number" name="quantity" value="<?php echo (int)$row['quantity']; ?>" class="form-control" min="0"></td>
+          <td><input form="<?php echo $fid; ?>" type="text" name="note" value="<?php echo htmlspecialchars($row['note']); ?>" class="form-control" placeholder="Note"></td>
+          <td style="white-space:nowrap;">
+            <button type="button" class="btn btn-secondary me-1" onclick="togglePartEdit(this)">Edit</button>
+            <button form="<?php echo $fid; ?>" type="submit" name="update_qty" class="btn btn-primary me-1">Save</button>
+            <button form="<?php echo $fid; ?>" type="submit" name="delete_part" class="btn btn-danger" formnovalidate onclick="return confirm('Are you sure you want to delete this part?');">Delete</button>
+          </td>
+        </tr>
+      <?php endwhile; ?>
+      </tbody>
+    </table>
+    </div>
+    <form method="post" action="viewinventorystatus.php?location=<?php echo htmlspecialchars($location); ?>" class="row g-2">
+      <input type="hidden" name="location" value="<?php echo htmlspecialchars($location); ?>">
+      <input type="hidden" name="list" value="refurbished">
+      <div class="col-md-4"><input type="text" name="part_name" class="form-control" placeholder="Refurbished part name" required></div>
+      <div class="col-md-2"><input type="number" name="quantity" class="form-control" value="0" min="0"></div>
+      <div class="col-md-4"><input type="text" name="note" class="form-control" placeholder="Note (optional)"></div>
+      <div class="col-md-2"><button type="submit" name="add_part" class="btn btn-success">Add</button></div>
+    </form>
+    <script>
+      function togglePartEdit(btn) {
+        var row = btn.closest('tr');
+        var label = row.querySelector('.part-name-label');
+        var input = row.querySelector('.part-name-input');
+        if (input.style.display === 'none') {
+          label.style.display = 'none';
+          input.style.display = 'block';
+          input.focus();
+          input.select();
+          btn.textContent = 'Cancel';
+        } else {
+          input.value = label.textContent;
+          input.style.display = 'none';
+          label.style.display = '';
+          btn.textContent = 'Edit';
+        }
+      }
+    </script>
+  <?php endif; ?>
 </div>
 
         </div>
